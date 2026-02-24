@@ -100,7 +100,7 @@ export function TrendChart({
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <ChartContainer config={chartConfig} className="h-[280px] w-full">
+        <ChartContainer config={chartConfig} className="h-[190px] sm:h-[280px] w-full">
           <ComposedChart data={datosFiltrados} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
@@ -243,7 +243,7 @@ export function MarginChart({ mesSeleccionado = 'acumulado' }: { mesSeleccionado
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
-        <ChartContainer config={chartConfig} className="h-[200px] w-full">
+        <ChartContainer config={chartConfig} className="h-[145px] sm:h-[200px] w-full">
           <BarChart data={datosFiltrados} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
             <XAxis 

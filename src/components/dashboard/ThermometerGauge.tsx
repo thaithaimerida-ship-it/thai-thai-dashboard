@@ -72,13 +72,13 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
   const formatValue = () => {
     if (tipo === 'ventas') return `$${(valor / 1000).toFixed(0)}K`;
     if (tipo === 'indice') return `${(valor / 100).toFixed(2)}`;
-    return `${valor}%`;
+    return `${(Math.round(valor * 10) / 10).toFixed(1)}%`;
   };
 
   return (
     <Card className="overflow-hidden bg-white dark:bg-gray-900 border shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
+      <CardHeader className="pb-1 sm:pb-2 px-2.5 pt-2.5 sm:px-6 sm:pt-6">
+        <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 text-gray-700 dark:text-gray-300">
           {titulo}
           {descripcion && (
             <div className="relative group">
@@ -90,10 +90,10 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 px-2.5 pb-2.5 sm:px-6 sm:pb-6">
         <div className="flex flex-col items-center">
           {/* Gauge SVG */}
-          <div className="relative w-48 h-24">
+          <div className="relative w-36 h-[4.5rem] sm:w-48 sm:h-24">
             <svg viewBox="0 0 200 120" className="w-full h-full">
               {/* Arco de fondo */}
               <path
@@ -142,12 +142,12 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
             {/* Valor central */}
             <div className="absolute inset-0 flex flex-col items-end justify-center pb-1">
               <div className="text-center w-full">
-                <span className="text-2xl font-bold" style={{ color: estado.color }}>
+                <span className="text-lg sm:text-2xl font-bold leading-none" style={{ color: estado.color }}>
                   {formatValue()}
                 </span>
                 {/* Mostrar monto si existe */}
                 {monto && (tipo === 'margen' || tipo === 'indice') && (
-                  <span className="block text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
+                  <span className="block text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">
                     = {formatMonto(monto)}
                   </span>
                 )}
@@ -156,16 +156,16 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
           </div>
           
           {/* Indicador de estado */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-lg">{estado.emoji}</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-2">
+            <span className="text-base sm:text-lg">{estado.emoji}</span>
             <div className="flex flex-col">
               <span 
-                className="text-sm font-semibold"
+                className="text-xs sm:text-sm font-semibold"
                 style={{ color: estado.color }}
               >
                 {estado.nivel}
               </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
                 {estado.descripcion}
               </span>
             </div>

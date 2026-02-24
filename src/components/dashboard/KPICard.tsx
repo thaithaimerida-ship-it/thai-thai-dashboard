@@ -67,7 +67,20 @@ export function KPICard({ kpi }: KPICardProps) {
         maximumFractionDigits: 0,
       }).format(value);
     }
-    return `${value}${unidad}`;
+
+    if (unidad === '%') {
+      const percentValue = Number.isFinite(value) ? Math.round(value * 10) / 10 : 0;
+      return `${new Intl.NumberFormat('es-MX', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1,
+      }).format(percentValue)}${unidad}`;
+    }
+
+    const compactValue = Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
+    return `${new Intl.NumberFormat('es-MX', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(compactValue)}${unidad}`;
   };
 
   const formatMonto = (value: number) => {
@@ -81,31 +94,31 @@ export function KPICard({ kpi }: KPICardProps) {
 
   return (
     <Card className={cn(
-      'relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02]',
+      'relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02] min-h-[100px] sm:min-h-[132px]',
       colors.bg,
       colors.border
     )}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-2.5 pt-2.5 sm:px-6 sm:pt-6">
+        <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 leading-tight">
           {kpi.titulo}
         </CardTitle>
-        <div className={cn('p-2 rounded-full bg-white/50 dark:bg-black/20', colors.accent)}>
-          {getIcon()}
+        <div className={cn('p-1 sm:p-2 rounded-full bg-white/50 dark:bg-black/20', colors.accent)}>
+          <span className="scale-90 sm:scale-100 block">{getIcon()}</span>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-2.5 pb-2.5 pt-0 sm:px-6 sm:pb-6">
         <div className="flex items-end justify-between">
           <div>
-            <div className={cn('text-3xl font-bold', colors.accent)}>
+            <div className={cn('text-xl sm:text-3xl font-bold leading-tight break-words', colors.accent)}>
               {formatValue(kpi.valor, kpi.unidad)}
             </div>
             {/* Mostrar monto si existe (para porcentajes) */}
             {kpi.monto && (
-              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium mt-0.5">
+              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium mt-0.5 break-words">
                 = {formatMonto(kpi.monto)}
               </div>
             )}
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
               {kpi.descripcion}
             </p>
           </div>
