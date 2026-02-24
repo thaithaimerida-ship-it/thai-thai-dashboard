@@ -400,7 +400,7 @@ export function calcularTopIngresos(ingresos: IngresoRaw[]): TopIngresoProcesado
   for (const ingreso of ingresos) {
     const fuente = normalizarPlataforma(ingreso.fuente);
     if (!porFuente[fuente]) {
-      porFuente[fuerte] = { monto: 0, comision: 0, count: 0 };
+      porFuente[fuente] = { monto: 0, comision: 0, count: 0 };
     }
     porFuente[fuente].monto += ingreso.montoNeto;
     porFuente[fuente].comision += Math.abs(ingreso.comision);
@@ -484,5 +484,4 @@ function calcularFechaFutura(dias: number): string {
   fecha.setDate(fecha.getDate() + dias);
   return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
 }
-
 

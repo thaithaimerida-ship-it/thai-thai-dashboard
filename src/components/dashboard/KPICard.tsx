@@ -113,7 +113,7 @@ export function KPICard({ kpi }: KPICardProps) {
             'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
             kpi.tendencia > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
             kpi.tendencia < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
-            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+            'hidden'
           )}>
             {kpi.tendencia > 0 ? (
               <TrendingUp className="h-3 w-3" />
@@ -122,7 +122,7 @@ export function KPICard({ kpi }: KPICardProps) {
             ) : (
               <Minus className="h-3 w-3" />
             )}
-            {kpi.tendencia !== 0 ? `${Math.abs(kpi.tendencia).toFixed(1)}%` : 'N/A'}
+            {kpi.tendencia !== 0 ? `${Math.abs(kpi.tendencia).toFixed(1)}%` : ''}
           </div>
         </div>
       </CardContent>

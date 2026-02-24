@@ -1,10 +1,8 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { comisionesPorPlataforma } from '@/data/realData';
+import { useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
-  TrendingUp, 
-  TrendingDown, 
   AlertTriangle, 
   CheckCircle, 
   Info,
@@ -14,12 +12,28 @@ import {
   DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { parseFecha, parseMoney } from '@/hooks/useGoogleSheets';
 
-interface ComisionesPlataformasProps {
-  filtroMes?: number | 'acumulado';
+interface IngresoRow {
+  Fecha: string;
+  'Fuente / Cliente': string;
+  Categoría: string;
+  'Monto Bruto (+)': string;
+  'Comisión / Retención (-)': string;
+  'Monto Neto (Cálculo)': string;
+  'Cuenta Destino': string;
+  'Notas / UUID': string;
 }
 
-export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPlataformasProps) {
+interface ComisionesPlataformasProps {
+  filtroMes?: number | 'ytd';
+  datosEnTiempoReal?: {
+    comisionesPorPlataforma: Record<string, { bruto: number; comision: number; neto: number; count: number }>;
+    ingresos: IngresoRow[];
+  };
+}
+
+export function ComisionesPlataformas({ filtroMes = 'ytd', datosEnTiempoReal }: ComisionesPlataformasProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -29,20 +43,83 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
     }).format(value);
   };
 
-  const totalComisiones = comisionesPorPlataforma.reduce((acc, p) => acc + p.comisionTotal, 0);
-  const totalBruto = comisionesPorPlataforma.reduce((acc, p) => acc + p.montoBruto, 0);
-  const totalNeto = comisionesPorPlataforma.reduce((acc, p) => acc + p.montoNeto, 0);
+  // Filtrar ingresos por mes
+  const ingresosFiltrados = useMemo(() => {
+    if (!datosEnTiempoReal?.ingresos) return [];
+    
+    if (filtroMes === 'ytd') {
+      return datosEnTiempoReal.ingresos;
+    }
+
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    
+    // Obtener el mes del índice
+    const ingresosPorMes: Record<string, IngresoRow[]> = {};
+    
+    datosEnTiempoReal.ingresos.forEach(ing => {
+      const fecha = parseFecha(ing.Fecha);
+      if (!fecha) return;
+      const mesKey = `${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
+      if (!ingresosPorMes[mesKey]) {
+        ingresosPorMes[mesKey] = [];
+      }
+      ingresosPorMes[mesKey].push(ing);
+    });
+
+    const mesesOrdenados = Object.keys(ingresosPorMes).sort((a, b) => {
+      const [mesA, añoA] = a.split(' ');
+      const [mesB, añoB] = b.split(' ');
+      return (parseInt(añoA) * 12 + meses.indexOf(mesA)) - (parseInt(añoB) * 12 + meses.indexOf(mesB));
+    });
+
+    const mesSeleccionado = mesesOrdenados[filtroMes];
+    return ingresosPorMes[mesSeleccionado] || [];
+  }, [datosEnTiempoReal, filtroMes]);
+
+  // Calcular comisiones por plataforma
+  const comisionesCalculadas = useMemo(() => {
+    const plataformas: Record<string, { bruto: number; comision: number; neto: number; count: number }> = {};
+    
+    ingresosFiltrados.forEach(ing => {
+      const plataforma = ing['Fuente / Cliente'] || 'Otros';
+      if (!plataformas[plataforma]) {
+        plataformas[plataforma] = { bruto: 0, comision: 0, neto: 0, count: 0 };
+      }
+      plataformas[plataforma].bruto += parseMoney(ing['Monto Bruto (+)']);
+      plataformas[plataforma].comision += parseMoney(ing['Comisión / Retención (-)']);
+      plataformas[plataforma].neto += parseMoney(ing['Monto Neto (Cálculo)']);
+      plataformas[plataforma].count++;
+    });
+
+    return Object.entries(plataformas).map(([plataforma, datos]) => ({
+      plataforma,
+      montoBruto: datos.bruto,
+      comisionTotal: datos.comision,
+      montoNeto: datos.neto,
+      numTransacciones: datos.count,
+      porcentajeComision: datos.bruto > 0 ? Math.round((datos.comision / datos.bruto) * 100) : 0,
+      esRentable: datos.bruto > 0 && (datos.comision / datos.bruto) < 0.15,
+      recomendacion: datos.bruto > 0 && (datos.comision / datos.bruto) >= 0.15 
+        ? 'Comisión alta - Considera ajustar precios' 
+        : 'Opción rentable',
+    })).sort((a, b) => b.montoBruto - a.montoBruto);
+  }, [ingresosFiltrados]);
+
+  const totalComisiones = comisionesCalculadas.reduce((acc, p) => acc + p.comisionTotal, 0);
+  const totalBruto = comisionesCalculadas.reduce((acc, p) => acc + p.montoBruto, 0);
+  const totalNeto = comisionesCalculadas.reduce((acc, p) => acc + p.montoNeto, 0);
   const porcentajeComisionTotal = totalBruto > 0 ? (totalComisiones / totalBruto) * 100 : 0;
 
   // Obtener icono según plataforma
   const getIcono = (plataforma: string) => {
-    if (plataforma.includes('Terminal') || plataforma.includes('Transfer')) {
+    if (plataforma.toLowerCase().includes('terminal') || plataforma.toLowerCase().includes('transfer') || plataforma.toLowerCase().includes('bbva')) {
       return <CreditCard className="h-4 w-4" />;
     }
-    if (plataforma.includes('Efectivo')) {
+    if (plataforma.toLowerCase().includes('efectivo')) {
       return <Banknote className="h-4 w-4" />;
     }
-    if (plataforma.includes('Uber') || plataforma.includes('Rappi')) {
+    if (plataforma.toLowerCase().includes('uber') || plataforma.toLowerCase().includes('rappi') || plataforma.toLowerCase().includes('didi')) {
       return <Smartphone className="h-4 w-4" />;
     }
     return <DollarSign className="h-4 w-4" />;
@@ -55,6 +132,14 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
     if (porcentaje <= 15) return { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', bar: 'bg-amber-500' };
     return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', bar: 'bg-red-500' };
   };
+
+  if (comisionesCalculadas.length === 0) {
+    return (
+      <Card className="p-6">
+        <p className="text-center text-gray-500">No hay datos de comisiones para el período seleccionado</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -76,9 +161,9 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
               <p className="text-xl font-bold text-green-200">{formatCurrency(totalNeto)}</p>
             </div>
             <div>
-              <p className="text-indigo-100 text-xs uppercase">Impacto Mensual</p>
-              <p className="text-xl font-bold">{formatCurrency(totalComisiones)}</p>
-              <p className="text-indigo-200 text-xs">Costo por usar plataformas</p>
+              <p className="text-indigo-100 text-xs uppercase">Plataformas</p>
+              <p className="text-xl font-bold">{comisionesCalculadas.length}</p>
+              <p className="text-indigo-200 text-xs">Fuentes de ingreso</p>
             </div>
           </div>
         </CardContent>
@@ -86,7 +171,7 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
 
       {/* Tabla de plataformas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {comisionesPorPlataforma.map((plataforma) => {
+        {comisionesCalculadas.map((plataforma) => {
           const colores = getColorComision(plataforma.porcentajeComision);
           
           return (
@@ -130,7 +215,7 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
                     <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className={cn('h-full', colores.bar)}
-                        style={{ width: `${Math.min(100, (plataforma.montoBruto / totalBruto) * 100)}%` }}
+                        style={{ width: `${Math.min(100, totalBruto > 0 ? (plataforma.montoBruto / totalBruto) * 100 : 0)}%` }}
                       />
                     </div>
                   </div>
@@ -143,7 +228,7 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
                     <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-red-400"
-                        style={{ width: `${Math.min(100, (plataforma.comisionTotal / totalComisiones) * 100)}%` }}
+                        style={{ width: `${Math.min(100, totalComisiones > 0 ? (plataforma.comisionTotal / totalComisiones) * 100 : 0)}%` }}
                       />
                     </div>
                   </div>
@@ -178,9 +263,8 @@ export function ComisionesPlataformas({ filtroMes = 'acumulado' }: ComisionesPla
                 Análisis de Comisiones
               </h4>
               <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
-                <li>• <strong>Uber Eats</strong> y <strong>Rappi</strong> cobran comisiones muy altas (47-68%). Considera aumentar precios en estas plataformas.</li>
-                <li>• <strong>Terminal Bancaria</strong> y <strong>Efectivo</strong> son las opciones más rentables (0-3%).</li>
-                <li>• Fomenta pagos directos y transferencias para reducir costos de comisión.</li>
+                <li>• Las plataformas de delivery (Uber Eats, Rappi, Didi) suelen cobrar comisiones altas (25-30%). Considera ajustar precios.</li>
+                <li>• Las terminales bancarias y efectivo son las opciones más rentables (0-3% de comisión).</li>
                 <li>• El costo total de comisiones representa {porcentajeComisionTotal.toFixed(1)}% de tus ventas brutas.</li>
               </ul>
             </div>

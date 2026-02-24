@@ -605,10 +605,11 @@ export function getEstadoIndicador(valor: number, tipo: 'margen' | 'ventas' | 'g
   }
   
   if (tipo === 'margen') {
-    if (valor >= 35) return { color: '#22c55e', emoji: '🟢', nivel: 'Excelente', descripcion: '¡Muy saludable!' };
-    if (valor >= 25) return { color: '#84cc16', emoji: '🟢', nivel: 'Bueno', descripcion: 'Por encima del promedio' };
-    if (valor >= 15) return { color: '#eab308', emoji: '🟡', nivel: 'Regular', descripcion: 'Necesita atención' };
-    if (valor >= 0) return { color: '#f97316', emoji: '🟠', nivel: 'Bajo', descripcion: 'Margen reducido' };
+    // Objetivos: 15% mínimo, 18% excelente (para Margen Bruto y Cash Yield)
+    if (valor >= 18) return { color: '#22c55e', emoji: '🟢', nivel: 'Excelente', descripcion: '¡Supera el objetivo!' };
+    if (valor >= 15) return { color: '#84cc16', emoji: '🟢', nivel: 'Bueno', descripcion: 'Dentro del objetivo' };
+    if (valor >= 12) return { color: '#eab308', emoji: '🟡', nivel: 'Regular', descripcion: 'Cerca del objetivo' };
+    if (valor >= 0) return { color: '#f97316', emoji: '🟠', nivel: 'Bajo', descripcion: 'Por debajo del objetivo' };
     return { color: '#ef4444', emoji: '🔴', nivel: 'Pérdida', descripcion: '¡Operando en negativo!' };
   }
   

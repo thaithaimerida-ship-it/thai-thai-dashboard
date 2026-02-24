@@ -1,85 +1,91 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { ThermometerGauge } from '@/components/dashboard/ThermometerGauge';
-import { TrendChart, MarginChart } from '@/components/dashboard/TrendChart';
+import { TrendChart } from '@/components/dashboard/TrendChart';
 import { TopItemsChart } from '@/components/dashboard/TopItemsChart';
-import { PEIndicator, ClientesMetrics, VentaDiariaMetrics, BrechaDetail } from '@/components/dashboard/PEIndicator';
 import { ComisionesPlataformas } from '@/components/dashboard/ComisionesPlataformas';
 import { ProyeccionPECard } from '@/components/dashboard/ProyeccionPE';
 import { AnalisisRangoFechas } from '@/components/dashboard/AnalisisRangoFechas';
+import { CONSTANTES_NEGOCIO, chartColors } from '@/data/realData';
+import { useGoogleSheets, procesarDatosDashboard, parseMoney, parseFecha, getMesAnio } from '@/hooks/useGoogleSheets';
 import { 
-  ventasMensuales, 
-  opcionesMeses, 
-  generateKPIs,
-  generateKPIsRestaurante,
-  getDatosMes,
-  getKPIsBrecha,
-  CONSTANTES_NEGOCIO,
-  chartColors,
-  resumenEjecutivo
-} from '@/data/realData';
-import { 
-  Activity, 
-  DollarSign, 
-  TrendingUp, 
-  BarChart3,
-  Calendar,
-  RefreshCw,
-  Download,
-  Lightbulb,
-  AlertTriangle,
-  CheckCircle,
-  ChevronDown,
-  Target,
-  Users,
-  Info,
-  CreditCard,
-  Calculator,
-  Filter,
-  Settings,
-  ExternalLink
+  Activity, DollarSign, BarChart3, Calendar, RefreshCw, Download,
+  Lightbulb, AlertTriangle, CheckCircle, ChevronDown, Target, Info,
+  CreditCard, Calculator, Filter, Settings, ExternalLink, Loader2, TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type TabId = 'dashboard' | 'comisiones' | 'proyeccion' | 'analisis' | 'automatizacion';
 
 export default function Dashboard() {
-  const [mesSeleccionado, setMesSeleccionado] = useState<number | 'acumulado'>(ventasMensuales.length - 1);
+  const { ingresos, gastos, cortesCaja, loading, error, lastUpdate, refetch, dataStatus } = useGoogleSheets();
+  const [mesSeleccionado, setMesSeleccionado] = useState<number | 'ytd'>(-1);
   const [tabActivo, setTabActivo] = useState<TabId>('dashboard');
   
-  const kpis = generateKPIs(mesSeleccionado);
-  const kpisRestaurante = generateKPIsRestaurante(mesSeleccionado);
-  const datosActuales = getDatosMes(mesSeleccionado);
-  
-  const mostrarBrecha = mesSeleccionado !== 'acumulado';
-  const brecha = mostrarBrecha ? getKPIsBrecha(mesSeleccionado as number) : null;
+  // Permitir datos parciales - procesar con lo que tengamos
+  const datosProcesados = useMemo(() => {
+    if (ingresos.length > 0 || gastos.length > 0) {
+      return procesarDatosDashboard(ingresos, gastos, cortesCaja);
+    }
+    return null;
+  }, [ingresos, gastos, cortesCaja]);
+
+  // Calcular datos YTD
+  const datosYTD = useMemo(() => {
+    if (!datosProcesados) return null;
+    const { ventasMensuales } = datosProcesados;
+    
+    const totalVentas = ventasMensuales.reduce((sum, m) => sum + m.ventas, 0);
+    const totalVentasBrutas = ventasMensuales.reduce((sum, m) => sum + m.ventasBrutas, 0);
+    const totalGastos = ventasMensuales.reduce((sum, m) => sum + m.gastos, 0);
+    const totalComisiones = ventasMensuales.reduce((sum, m) => sum + m.comisiones, 0);
+    const totalUtilidadNeta = ventasMensuales.reduce((sum, m) => sum + (m.cashYieldMonto || 0), 0);
+    const totalImpuestosFin = ventasMensuales.reduce((sum, m) => sum + (m.impuestosFinanciamientos || 0), 0);
+    const totalComensales = ventasMensuales.reduce((sum, m) => sum + (m.comensales || 0), 0);
+    const totalCostoVenta = ventasMensuales.reduce((sum, m) => sum + (m.costoVenta || 0), 0);
+    const totalNomina = ventasMensuales.reduce((sum, m) => sum + (m.nomina || 0), 0);
+    
+    const utilidadBruta = totalVentas - totalGastos;
+    const margenBruto = totalVentas > 0 ? Math.round((utilidadBruta / totalVentas) * 100) : 0;
+    const cashYield = totalVentas > 0 ? (totalUtilidadNeta / totalVentas) * 100 : 0;
+    const foodCost = totalVentas > 0 ? Math.round((totalCostoVenta / totalVentas) * 10000) / 100 : 0;
+    const labor = totalVentas > 0 ? Math.round((totalNomina / totalVentas) * 10000) / 100 : 0;
+    const costoPrimo = foodCost + labor;
+    
+    return {
+      mes: 'YTD',
+      mesCompleto: 'Acumulado YTD 2026',
+      ventas: totalVentas,
+      ventasBrutas: totalVentasBrutas,
+      comisiones: totalComisiones,
+      gastos: totalGastos,
+      utilidad: utilidadBruta,
+      utilidadNeta: totalUtilidadNeta,
+      impuestosFinanciamientos: totalImpuestosFin,
+      margenBruto,
+      margenNeto: margenBruto,
+      cashYield: Math.round(cashYield * 100) / 100,
+      cashYieldMonto: totalUtilidadNeta,
+      indiceVsPE: totalVentas / CONSTANTES_NEGOCIO.PE_MENSUAL,
+      comensales: totalComensales,
+      costoVenta: totalCostoVenta,
+      nomina: totalNomina,
+      foodCost,
+      labor,
+      costoPrimo,
+    };
+  }, [datosProcesados]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      style: 'currency', currency: 'MXN',
+      minimumFractionDigits: 0, maximumFractionDigits: 0,
     }).format(value);
   };
 
-  const handleMesChange = (valor: string) => {
-    if (valor === 'acumulado') {
-      setMesSeleccionado('acumulado');
-    } else {
-      setMesSeleccionado(parseInt(valor));
-    }
-  };
-
-  const alcanzoPE = datosActuales.ventas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
-  const alcanzoObjetivo = datosActuales.ventas >= CONSTANTES_NEGOCIO.VENTA_OBJETIVO;
-  const utilidad = datosActuales.ventas - datosActuales.gastos;
-  const porcentajeGastoSobreVentas = datosActuales.ventas > 0 ? Math.round((datosActuales.gastos / datosActuales.ventas) * 100) : 0;
-
-  // Tabs de navegación
   const tabs = [
     { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart3 },
     { id: 'comisiones' as const, label: 'Comisiones', icon: CreditCard },
@@ -88,38 +94,205 @@ export default function Dashboard() {
     { id: 'automatizacion' as const, label: 'Automatizar', icon: Settings },
   ];
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800">Conectando con Google Sheets...</h2>
+          <p className="text-gray-500 mt-2">Obteniendo datos en tiempo real</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-red-200 bg-red-50">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-red-800">Error de conexión</h2>
+            <p className="text-red-600 mt-2">{error}</p>
+            <button onClick={refetch} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+              Reintentar
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // No data
+  if (!datosProcesados || datosProcesados.ventasMensuales.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-6 text-center">
+            <Info className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-800">Sin datos disponibles</h2>
+            <p className="text-gray-500 mt-2">No se encontraron registros en Google Sheets</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { ventasMensuales, acumulado, comisionesPorPlataforma, gastosPorCategoria } = datosProcesados;
+
+  // Obtener el mes actual del sistema
+  const obtenerMesActualIndex = () => {
+    const ahora = new Date();
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const mesActual = `${meses[ahora.getMonth()]} ${ahora.getFullYear()}`;
+    
+    // Buscar el mes actual en los datos
+    const index = ventasMensuales.findIndex(m => m.mesCompleto === mesActual);
+    return index >= 0 ? index : ventasMensuales.length - 1; // Si no existe, usar el último
+  };
+
+  // Índice real del mes seleccionado (-1 = mes actual)
+  const indiceMes = mesSeleccionado === 'ytd' 
+    ? 'ytd' 
+    : (mesSeleccionado === -1 ? obtenerMesActualIndex() : mesSeleccionado);
+
+  // Datos actuales según selección
+  const datosActuales = indiceMes === 'ytd' 
+    ? datosYTD! 
+    : ventasMensuales[indiceMes as number];
+
+  const opcionesMeses = [
+    { valor: 'ytd', etiqueta: '📊 Acumulado YTD' },
+    ...ventasMensuales.map((m, i) => ({ valor: i.toString(), etiqueta: `📅 ${m.mesCompleto}` }))
+  ];
+
+  const alcanzoPE = datosActuales.ventas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
+  const utilidad = datosActuales.ventas - datosActuales.gastos;
+  const cashYield = datosActuales.cashYield || 0;
+  const cashYieldMonto = datosActuales.cashYieldMonto || 0;
+
+  // KPIs Financieros
+  const porcentajeVsObjetivo = Math.round((datosActuales.ventas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
+  const utilidadBruta = datosActuales.ventas - datosActuales.gastos;
+  const utilidadBrutaPorcentaje = datosActuales.ventas > 0 ? Math.round((utilidadBruta / datosActuales.ventas) * 10000) / 100 : 0;
+  
+  const kpis = [
+    { 
+      titulo: 'Utilidad Bruta', 
+      valor: utilidadBrutaPorcentaje, 
+      unidad: '%', 
+      tendencia: 0, 
+      estado: utilidadBrutaPorcentaje >= 15 ? (utilidadBrutaPorcentaje >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
+      descripcion: 'Objetivo: 15% - 18%',
+      monto: Math.round(utilidadBruta)
+    },
+    { 
+      titulo: 'Cash Yield', 
+      valor: cashYield, 
+      unidad: '%', 
+      tendencia: 0, 
+      estado: cashYield >= 12 ? (cashYield >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
+      descripcion: 'Utilidad neta después de impuestos',
+      monto: Math.round(cashYieldMonto)
+    },
+    { 
+      titulo: 'Ventas Netas', 
+      valor: datosActuales.ventas, 
+      unidad: '$', 
+      tendencia: 0, 
+      estado: alcanzoPE ? 'excelente' : 'critico' as const, 
+      descripcion: `${porcentajeVsObjetivo}% vs objetivo ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
+    },
+    { 
+      titulo: 'Gastos Operativos', 
+      valor: datosActuales.gastos, 
+      unidad: '$', 
+      tendencia: 0, 
+      estado: 'bueno' as const, 
+      descripcion: 'Costo de Venta + Gastos Op' 
+    },
+  ];
+
+  const kpisRestaurante = [
+    { titulo: 'Índice vs PE', valor: parseFloat(datosActuales.indiceVsPE.toFixed(2)), unidad: '', tendencia: 0, estado: datosActuales.indiceVsPE >= 1 ? 'excelente' : 'critico' as const, descripcion: datosActuales.indiceVsPE >= 1 ? '¡Arriba del PE!' : 'Debajo del PE' },
+    { titulo: 'PE Mensual', valor: CONSTANTES_NEGOCIO.PE_MENSUAL, unidad: '$', tendencia: 0, estado: 'bueno' as const, descripcion: 'Punto de equilibrio' },
+    { titulo: 'Venta Objetivo', valor: CONSTANTES_NEGOCIO.VENTA_OBJETIVO, unidad: '$', tendencia: 0, estado: 'bueno' as const, descripcion: 'Meta mensual' },
+    { titulo: 'Comisiones', valor: datosActuales.comisiones, unidad: '$', tendencia: 0, estado: 'alerta' as const, descripcion: `${Math.round((datosActuales.comisiones / datosActuales.ventasBrutas) * 100)}% sobre ventas brutas` },
+  ];
+
+  // Objetivos de comensales
+  const COMENSALES_PE = 990;
+  const COMENSALES_OBJETIVO = 1100;
+
+  const brecha = {
+    faltanteParaPE: Math.max(0, CONSTANTES_NEGOCIO.PE_MENSUAL - datosActuales.ventas),
+    faltanteParaObjetivo: Math.max(0, CONSTANTES_NEGOCIO.VENTA_OBJETIVO - datosActuales.ventas),
+    comensalesFaltantesPE: Math.max(0, COMENSALES_PE - (datosActuales.comensales || 0)),
+    comensalesFaltantesObjetivo: Math.max(0, COMENSALES_OBJETIVO - (datosActuales.comensales || 0)),
+  };
+
+  // KPIs de Brechas
+  const kpisBrechas = [
+    { 
+      titulo: 'Faltante para PE', 
+      valor: brecha.faltanteParaPE, 
+      unidad: '$', 
+      tendencia: 0, 
+      estado: brecha.faltanteParaPE === 0 ? 'excelente' : 'alerta' as const, 
+      descripcion: brecha.faltanteParaPE === 0 ? '¡PE alcanzado!' : `Ventas actuales: ${formatCurrency(datosActuales.ventas)}` 
+    },
+    { 
+      titulo: 'Faltante para Objetivo', 
+      valor: brecha.faltanteParaObjetivo, 
+      unidad: '$', 
+      tendencia: 0, 
+      estado: brecha.faltanteParaObjetivo === 0 ? 'excelente' : 'bueno' as const, 
+      descripcion: brecha.faltanteParaObjetivo === 0 ? '¡Objetivo alcanzado!' : `Meta: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
+    },
+    { 
+      titulo: 'Comensales Faltantes', 
+      valor: brecha.comensalesFaltantesObjetivo, 
+      unidad: '', 
+      tendencia: 0, 
+      estado: brecha.comensalesFaltantesObjetivo === 0 ? 'excelente' : 'alerta' as const, 
+      descripcion: `Actual: ${datosActuales.comensales || 0} | Objetivo: ${COMENSALES_OBJETIVO}`
+    },
+    { 
+      titulo: 'Comensales Faltantes PE', 
+      valor: brecha.comensalesFaltantesPE, 
+      unidad: '', 
+      tendencia: 0, 
+      estado: brecha.comensalesFaltantesPE === 0 ? 'excelente' : 'alerta' as const, 
+      descripcion: `Actual: ${datosActuales.comensales || 0} | PE: ${COMENSALES_PE}`
+    },
+  ];
+
   // Recomendaciones
   const recomendaciones = [];
-  if (datosActuales.margenBruto < 25) {
-    recomendaciones.push({
-      tipo: 'alerta' as const,
-      titulo: 'Margen Bruto Bajo',
-      descripcion: `El margen bruto de ${datosActuales.margenBruto}% está por debajo del 25% recomendado.`,
-    });
+  if (utilidadBrutaPorcentaje < 15) {
+    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Utilidad Bruta Baja', descripcion: `La utilidad bruta de ${utilidadBrutaPorcentaje.toFixed(1)}% está por debajo del 15% objetivo.` });
+  } else if (utilidadBrutaPorcentaje >= 18) {
+    recomendaciones.push({ tipo: 'exito' as const, titulo: 'Utilidad Bruta Excelente', descripcion: `Utilidad bruta de ${utilidadBrutaPorcentaje.toFixed(1)}% supera el objetivo de 18%.` });
   }
-  if (!alcanzoPE && mostrarBrecha) {
-    recomendaciones.push({
-      tipo: 'alerta' as const,
-      titulo: 'Por debajo del PE',
-      descripcion: `Faltan ${formatCurrency(brecha!.faltanteParaPE)} para alcanzar el punto de equilibrio.`,
-    });
-  } else if (alcanzoPE && mostrarBrecha) {
-    recomendaciones.push({
-      tipo: 'exito' as const,
-      titulo: 'PE Alcanzado',
-      descripcion: `Has superado el PE. Excedente: ${formatCurrency(datosActuales.ventas - CONSTANTES_NEGOCIO.PE_MENSUAL)}`,
-    });
+  if (cashYield < 12) {
+    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Cash Yield Bajo', descripcion: `El Cash Yield de ${cashYield.toFixed(2)}% está por debajo del 12% objetivo.` });
+  } else if (cashYield >= 18) {
+    recomendaciones.push({ tipo: 'exito' as const, titulo: 'Cash Yield Excelente', descripcion: `Cash Yield de ${cashYield.toFixed(2)}% supera el objetivo de 18%.` });
   }
-  recomendaciones.push({
-    tipo: 'info' as const,
-    titulo: 'Referencias',
-    descripcion: `PE: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)} | Objetivo: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}`,
-  });
+  if (!alcanzoPE) {
+    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Por debajo del PE', descripcion: `Faltan ${formatCurrency(brecha.faltanteParaPE)} para alcanzar el punto de equilibrio.` });
+  } else {
+    recomendaciones.push({ tipo: 'exito' as const, titulo: 'PE Alcanzado', descripcion: `Has superado el PE. Excedente: ${formatCurrency(datosActuales.ventas - CONSTANTES_NEGOCIO.PE_MENSUAL)}` });
+  }
+  recomendaciones.push({ tipo: 'info' as const, titulo: 'Referencias', descripcion: `PE: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)} | Objetivo: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
@@ -127,42 +300,35 @@ export default function Dashboard() {
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-                  THAI THAI Dashboard
-                </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Termómetro para toma de decisiones
-                </p>
+                <h1 className="text-lg font-bold text-gray-900">THAI THAI Dashboard</h1>
+                <p className="text-xs text-gray-500">Datos en tiempo real desde Google Sheets</p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              {/* Selector de mes */}
+              {lastUpdate && (
+                <span className="text-xs text-gray-500 hidden sm:block">
+                  Actualizado: {lastUpdate.toLocaleTimeString('es-MX')}
+                </span>
+              )}
               <div className="relative">
                 <select
-                  value={mesSeleccionado.toString()}
-                  onChange={(e) => handleMesChange(e.target.value)}
-                  className="appearance-none bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={indiceMes.toString()}
+                  onChange={(e) => setMesSeleccionado(e.target.value === 'ytd' ? 'ytd' : parseInt(e.target.value))}
+                  className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {opcionesMeses.map((op) => (
-                    <option key={op.valor} value={op.valor}>
-                      {op.etiqueta}
-                    </option>
+                    <option key={op.valor} value={op.valor}>{op.etiqueta}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               </div>
-              
-              <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={refetch} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Actualizar datos">
                 <RefreshCw className="h-4 w-4" />
-              </button>
-              <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                <Download className="h-4 w-4" />
               </button>
             </div>
           </div>
           
-          {/* Tabs */}
           <div className="flex gap-1 -mb-px overflow-x-auto">
             {tabs.map((tab) => (
               <button
@@ -171,7 +337,7 @@ export default function Dashboard() {
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
                   tabActivo === tab.id
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 )}
               >
@@ -183,61 +349,88 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Avisos de estado de datos */}
+      {(dataStatus.ingresos !== 'ok' || dataStatus.gastos !== 'ok' || dataStatus.cortesCaja !== 'ok') && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3 text-sm">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <span className="text-amber-800 font-medium">Datos parciales:</span>
+            {dataStatus.ingresos === 'ok' && (
+              <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded">✓ Ingresos</span>
+            )}
+            {dataStatus.ingresos === 'vacio' && (
+              <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded">⚠ Ingresos vacío</span>
+            )}
+            {dataStatus.ingresos === 'error' && (
+              <span className="text-red-700 bg-red-100 px-2 py-0.5 rounded">✗ Ingresos error</span>
+            )}
+            {dataStatus.gastos === 'ok' && (
+              <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded">✓ Gastos</span>
+            )}
+            {dataStatus.gastos === 'vacio' && (
+              <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded">⚠ Gastos vacío</span>
+            )}
+            {dataStatus.gastos === 'error' && (
+              <span className="text-red-700 bg-red-100 px-2 py-0.5 rounded">✗ Gastos error</span>
+            )}
+            {dataStatus.cortesCaja === 'ok' && (
+              <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded">✓ Comensales</span>
+            )}
+            {(dataStatus.cortesCaja === 'vacio' || dataStatus.cortesCaja === 'error') && (
+              <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded">○ Comensales no disponible</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* TAB: Dashboard Principal */}
         {tabActivo === 'dashboard' && (
           <div className="space-y-6">
-            {/* Indicadores de estado */}
+            {/* Estado */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-2 flex items-center gap-2">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-blue-600" />
-                <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-                  {mesSeleccionado === 'acumulado' 
-                    ? 'Período Acumulado' 
-                    : ventasMensuales[mesSeleccionado]?.mesCompleto}
+                <span className="text-sm text-blue-700 font-medium">
+                  {datosActuales.mesCompleto}
                 </span>
               </div>
-              
-              {mostrarBrecha && (
-                <>
-                  <div className={cn(
-                    'rounded-lg px-4 py-2 flex items-center gap-2',
-                    alcanzoPE 
-                      ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800' 
-                      : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
-                  )}>
-                    <Target className={cn('h-4 w-4', alcanzoPE ? 'text-green-600' : 'text-red-600')} />
-                    <span className={cn('text-sm font-medium', alcanzoPE ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300')}>
-                      PE: {alcanzoPE ? 'Alcanzado' : 'No alcanzado'}
-                    </span>
-                  </div>
-                </>
-              )}
+              <div className={cn('rounded-lg px-4 py-2 flex items-center gap-2', alcanzoPE ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200')}>
+                <Target className={cn('h-4 w-4', alcanzoPE ? 'text-green-600' : 'text-red-600')} />
+                <span className={cn('text-sm font-medium', alcanzoPE ? 'text-green-700' : 'text-red-700')}>
+                  PE: {alcanzoPE ? 'Alcanzado' : 'No alcanzado'}
+                </span>
+              </div>
             </div>
 
-            {/* KPIs Financieros */}
+            {/* KPIs */}
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <DollarSign className="h-5 w-5 text-blue-600" />
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">KPIs Financieros</h2>
+                <h2 className="text-sm font-semibold text-gray-700">KPIs Financieros</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpis.map((kpi) => (
-                  <KPICard key={kpi.titulo} kpi={kpi} />
-                ))}
+                {kpis.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
               </div>
             </section>
 
-            {/* KPIs de Restaurante */}
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Target className="h-5 w-5 text-amber-500" />
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">KPIs de Restaurante (PE y Objetivo)</h2>
+                <h2 className="text-sm font-semibold text-gray-700">KPIs de Restaurante</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpisRestaurante.map((kpi) => (
-                  <KPICard key={kpi.titulo} kpi={kpi} />
-                ))}
+                {kpisRestaurante.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
+              </div>
+            </section>
+
+            {/* KPIs de Brechas */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="h-5 w-5 text-green-500" />
+                <h2 className="text-sm font-semibold text-gray-700">Brechas vs Objetivos</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {kpisBrechas.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
               </div>
             </section>
 
@@ -245,113 +438,78 @@ export default function Dashboard() {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Activity className="h-5 w-5 text-blue-600" />
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Indicadores de Salud</h2>
+                <h2 className="text-sm font-semibold text-gray-700">Indicadores de Salud</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <ThermometerGauge 
-                  titulo="Margen Bruto" 
-                  valor={datosActuales.margenBruto} 
-                  tipo="margen"
-                  monto={Math.round(datosActuales.ventas * datosActuales.margenBruto / 100)}
-                />
-                <ThermometerGauge 
-                  titulo="Margen Neto" 
-                  valor={datosActuales.margenNeto} 
-                  tipo="margen"
-                  monto={Math.round(datosActuales.ventas * datosActuales.margenNeto / 100)}
-                />
-                <ThermometerGauge 
-                  titulo="Índice vs PE" 
-                  valor={datosActuales.indiceVsPE * 100} 
-                  tipo="indice"
-                />
-                <ThermometerGauge 
-                  titulo="Nivel de Ventas" 
-                  valor={datosActuales.ventas} 
-                  tipo="ventas"
-                />
+                <ThermometerGauge titulo="Utilidad Bruta" valor={utilidadBrutaPorcentaje} tipo="margen" monto={Math.round(utilidadBruta)} />
+                <ThermometerGauge titulo="Cash Yield" valor={cashYield} tipo="margen" monto={Math.round(cashYieldMonto)} />
+                <ThermometerGauge titulo="Índice vs PE" valor={datosActuales.indiceVsPE * 100} tipo="indice" />
+                <ThermometerGauge titulo="Nivel de Ventas" valor={datosActuales.ventas} tipo="ventas" />
               </div>
             </section>
 
-            {/* Gráfico de tendencias */}
-            <section>
-              <TrendChart mesSeleccionado={mesSeleccionado} />
-            </section>
-
-            {/* Top gastos y ventas */}
+            {/* KPIs Operativos - Food Cost, Labor, Costo Primo */}
             <section>
               <div className="flex items-center gap-2 mb-3">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Análisis Detallado</h2>
+                <BarChart3 className="h-5 w-5 text-purple-500" />
+                <h2 className="text-sm font-semibold text-gray-700">KPIs Operativos</h2>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <TopItemsChart tipo="gastos" />
-                <TopItemsChart tipo="ventas" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <KPICard 
+                  kpi={{ 
+                    titulo: 'Food Cost', 
+                    valor: datosActuales.foodCost || 0, 
+                    unidad: '%', 
+                    tendencia: 0, 
+                    estado: (datosActuales.foodCost || 0) <= 32 ? ((datosActuales.foodCost || 0) <= 28 ? 'excelente' : 'bueno') : 'alerta' as const, 
+                    descripcion: `Objetivo: 28% - 32%`,
+                    monto: datosActuales.costoVenta || 0
+                  }} 
+                />
+                <KPICard 
+                  kpi={{ 
+                    titulo: 'Labor', 
+                    valor: datosActuales.labor || 0, 
+                    unidad: '%', 
+                    tendencia: 0, 
+                    estado: (datosActuales.labor || 0) <= 25 ? ((datosActuales.labor || 0) <= 20 ? 'excelente' : 'bueno') : 'alerta' as const, 
+                    descripcion: `Objetivo: 20% - 25%`,
+                    monto: datosActuales.nomina || 0
+                  }} 
+                />
+                <KPICard 
+                  kpi={{ 
+                    titulo: 'Costo Primo', 
+                    valor: datosActuales.costoPrimo || 0, 
+                    unidad: '%', 
+                    tendencia: 0, 
+                    estado: (datosActuales.costoPrimo || 0) < 60 ? 'excelente' : 'alerta' as const, 
+                    descripcion: `Objetivo: < 60%`,
+                    monto: (datosActuales.costoVenta || 0) + (datosActuales.nomina || 0)
+                  }} 
+                />
               </div>
-            </section>
-
-            {/* Resumen */}
-            <section>
-              <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white overflow-hidden">
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div>
-                      <p className="text-blue-100 text-xs uppercase tracking-wide mb-1">Ventas</p>
-                      <p className="text-2xl font-bold">{formatCurrency(datosActuales.ventas)}</p>
-                      <p className="text-blue-200 text-xs mt-1">Neto del período</p>
-                    </div>
-                    <div>
-                      <p className="text-blue-100 text-xs uppercase tracking-wide mb-1">Gastos</p>
-                      <p className="text-2xl font-bold">{formatCurrency(datosActuales.gastos)}</p>
-                      <p className="text-blue-200 text-xs mt-1">{porcentajeGastoSobreVentas}% sobre ventas</p>
-                    </div>
-                    <div>
-                      <p className="text-blue-100 text-xs uppercase tracking-wide mb-1">Utilidad Neta</p>
-                      <p className="text-2xl font-bold text-green-300">{formatCurrency(utilidad)}</p>
-                      <p className="text-blue-200 text-xs mt-1">{datosActuales.margenNeto}% margen</p>
-                    </div>
-                    <div>
-                      <p className="text-blue-100 text-xs uppercase tracking-wide mb-1">Margen Bruto</p>
-                      <p className="text-2xl font-bold">{datosActuales.margenBruto}%</p>
-                      <p className="text-blue-200 text-xs mt-1">= {formatCurrency(Math.round(datosActuales.ventas * datosActuales.margenBruto / 100))}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </section>
 
             {/* Recomendaciones */}
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb className="h-5 w-5 text-amber-500" />
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recomendaciones</h2>
+                <h2 className="text-sm font-semibold text-gray-700">Recomendaciones</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {recomendaciones.map((rec, index) => (
-                  <Card 
-                    key={index}
-                    className={cn(
-                      'border-l-4',
-                      rec.tipo === 'alerta' && 'border-l-amber-500 bg-amber-50 dark:bg-amber-950/30',
-                      rec.tipo === 'exito' && 'border-l-green-500 bg-green-50 dark:bg-green-950/30',
-                      rec.tipo === 'info' && 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/30',
-                    )}
-                  >
+                  <Card key={index} className={cn('border-l-4', rec.tipo === 'alerta' && 'border-l-amber-500 bg-amber-50', rec.tipo === 'exito' && 'border-l-green-500 bg-green-50', rec.tipo === 'info' && 'border-l-blue-500 bg-blue-50')}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className={cn(
-                          'p-2 rounded-full',
-                          rec.tipo === 'alerta' && 'bg-amber-100 dark:bg-amber-900',
-                          rec.tipo === 'exito' && 'bg-green-100 dark:bg-green-900',
-                          rec.tipo === 'info' && 'bg-blue-100 dark:bg-blue-900',
-                        )}>
-                          {rec.tipo === 'alerta' && <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
-                          {rec.tipo === 'exito' && <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />}
-                          {rec.tipo === 'info' && <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                        <div className={cn('p-2 rounded-full', rec.tipo === 'alerta' && 'bg-amber-100', rec.tipo === 'exito' && 'bg-green-100', rec.tipo === 'info' && 'bg-blue-100')}>
+                          {rec.tipo === 'alerta' && <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                          {rec.tipo === 'exito' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                          {rec.tipo === 'info' && <Info className="h-4 w-4 text-blue-600" />}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{rec.titulo}</h3>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{rec.descripcion}</p>
+                          <h3 className="font-semibold text-gray-800 text-sm">{rec.titulo}</h3>
+                          <p className="text-xs text-gray-600 mt-1">{rec.descripcion}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -362,166 +520,98 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* TAB: Comisiones por Plataforma */}
         {tabActivo === 'comisiones' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-5 w-5 text-purple-500" />
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Análisis de Comisiones por Plataforma
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-800">Análisis de Comisiones por Plataforma</h2>
             </div>
-            <ComisionesPlataformas filtroMes={mesSeleccionado} />
+            <ComisionesPlataformas filtroMes={mesSeleccionado} datosEnTiempoReal={{ comisionesPorPlataforma, ingresos }} />
           </div>
         )}
 
-        {/* TAB: Proyección PE */}
         {tabActivo === 'proyeccion' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <Calculator className="h-5 w-5 text-blue-500" />
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Proyección para Alcanzar el Punto de Equilibrio
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-800">Proyección para Alcanzar el PE</h2>
             </div>
-            <ProyeccionPECard mesIndex={typeof mesSeleccionado === 'number' ? mesSeleccionado : 0} />
+            <ProyeccionPECard mesIndex={typeof mesSeleccionado === 'number' ? mesSeleccionado : 0} datosReales={datosActuales} />
           </div>
         )}
 
-        {/* TAB: Análisis por Fechas */}
         {tabActivo === 'analisis' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <Filter className="h-5 w-5 text-green-500" />
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Análisis de Costos por Rango de Fecha
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-800">Análisis de Costos por Rango de Fecha</h2>
             </div>
-            <AnalisisRangoFechas />
+            <AnalisisRangoFechas gastosRaw={gastos} />
           </div>
         )}
 
-        {/* TAB: Automatización */}
         {tabActivo === 'automatizacion' && (
           <div className="space-y-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Settings className="h-5 w-5 text-gray-500" />
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Automatizar Conexión con Google Sheets
-              </h2>
-            </div>
-            
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <div>
+                    <h2 className="text-lg font-semibold text-green-800">¡Conexión Activa!</h2>
+                    <p className="text-green-600">El dashboard está conectado a Google Sheets en tiempo real.</p>
+                    <p className="text-sm text-green-500 mt-1">
+                      Sheet ID: {process.env.NEXT_PUBLIC_SHEET_ID || '17LNxz8jXPWF9G2d0Rwa1Mzw-6s1brtJzYufnyOI42FI'.substring(0, 20)}...
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ExternalLink className="h-5 w-5 text-blue-500" />
-                  Conectar con Google Sheets
+                  Datos Conectados
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <h3 className="text-lg font-semibold">Opción 1: Google Sheets API (Recomendado)</h3>
-                  <ol className="space-y-3 list-decimal list-inside">
-                    <li>
-                      <strong>Crear proyecto en Google Cloud Console</strong>
-                      <p className="text-gray-600 dark:text-gray-400 ml-4">
-                        Ve a <a href="https://console.cloud.google.com" target="_blank" className="text-blue-500 hover:underline">console.cloud.google.com</a>, crea un proyecto nuevo.
-                      </p>
-                    </li>
-                    <li>
-                      <strong>Habilitar Google Sheets API</strong>
-                      <p className="text-gray-600 dark:text-gray-400 ml-4">
-                        En &quot;APIs &amp; Services&quot; → &quot;Library&quot;, busca &quot;Google Sheets API&quot; y habilítala.
-                      </p>
-                    </li>
-                    <li>
-                      <strong>Crear credenciales (Service Account)</strong>
-                      <p className="text-gray-600 dark:text-gray-400 ml-4">
-                        En &quot;APIs &amp; Services&quot; → &quot;Credentials&quot;, crea una cuenta de servicio.
-                        Descarga el archivo JSON de credenciales.
-                      </p>
-                    </li>
-                    <li>
-                      <strong>Compartir tu Google Sheet</strong>
-                      <p className="text-gray-600 dark:text-gray-400 ml-4">
-                        Abre tu Google Sheet y compártelo con el email de la cuenta de servicio (tiene formato: 
-                        <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">nombre@proyecto.iam.gserviceaccount.com</code>).
-                      </p>
-                    </li>
-                    <li>
-                      <strong>Obtener el ID del Spreadsheet</strong>
-                      <p className="text-gray-600 dark:text-gray-400 ml-4">
-                        El ID está en la URL de tu Sheet: 
-                        <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
-                          docs.google.com/spreadsheets/d/<strong className="text-blue-600">ESTE_ES_EL_ID</strong>/edit
-                        </code>
-                      </p>
-                    </li>
-                  </ol>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-800">Ingresos_BD</h3>
+                    <p className="text-2xl font-bold text-blue-600">{ingresos.length} registros</p>
+                    <p className="text-sm text-blue-500">Última actualización: {lastUpdate?.toLocaleString('es-MX')}</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-red-800">Gastos_BD</h3>
+                    <p className="text-2xl font-bold text-red-600">{gastos.length} registros</p>
+                    <p className="text-sm text-red-500">Última actualización: {lastUpdate?.toLocaleString('es-MX')}</p>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                    Código de ejemplo para Next.js API Route:
-                  </h4>
-                  <pre className="text-xs bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-{`// app/api/sheets/route.ts
-import { google } from 'googleapis';
-
-export async function GET() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\\\n/g, '\\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  });
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: 'TU_SPREADSHEET_ID',
-    range: 'Gastos_BD!A:O', // Nombre de tu hoja
-  });
-
-  return Response.json(response.data.values);
-}`}
-                  </pre>
-                </div>
-
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <h3 className="text-lg font-semibold">Opción 2: Publicar como CSV (Más simple)</h3>
-                  <ol className="space-y-2 list-decimal list-inside">
-                    <li>En tu Google Sheet, ve a <strong>Archivo → Compartir → Publicar en la web</strong></li>
-                    <li>Selecciona la hoja que quieres publicar</li>
-                    <li>Elige formato <strong>Valores separados por comas (.csv)</strong></li>
-                    <li>Copia el enlace generado</li>
-                  </ol>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    ⚠️ Nota: Este método hace los datos públicos. Úsalo solo si no hay información sensible.
-                  </p>
-                </div>
-
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                  <h4 className="font-semibold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    Importante
-                  </h4>
-                  <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
-                    <li>• Nunca subas el archivo de credenciales JSON a repositorios públicos</li>
-                    <li>• Usa variables de entorno para las credenciales</li>
-                    <li>• La cuenta de servicio solo puede acceder a sheets que le hayas compartido</li>
-                  </ul>
-                </div>
-
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                    ✅ Datos Actuales
-                  </h4>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    El dashboard ya está funcionando con datos importados desde tus archivos CSV.
-                    Para actualizar, simplemente exporta nuevos CSV desde tu Google Sheet y reemplaza los archivos.
-                  </p>
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumen de Datos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div>
+                    <p className="text-gray-500 text-sm">Ventas Brutas</p>
+                    <p className="text-xl font-bold text-green-600">{formatCurrency(acumulado.ventasBrutas)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-sm">Comisiones</p>
+                    <p className="text-xl font-bold text-red-600">{formatCurrency(acumulado.comisiones)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-sm">Ventas Netas</p>
+                    <p className="text-xl font-bold text-blue-600">{formatCurrency(acumulado.ventasNetas)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-sm">Gastos</p>
+                    <p className="text-xl font-bold text-orange-600">{formatCurrency(acumulado.gastos)}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -529,9 +619,8 @@ export async function GET() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="text-center py-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-800">
-        <p>THAI THAI Dashboard • Datos reales Enero-Febrero 2026</p>
+      <footer className="text-center py-4 text-xs text-gray-500 border-t border-gray-200">
+        <p>THAI THAI Dashboard • Conectado a Google Sheets • {lastUpdate?.toLocaleString('es-MX') || 'Cargando...'}</p>
       </footer>
     </div>
   );
