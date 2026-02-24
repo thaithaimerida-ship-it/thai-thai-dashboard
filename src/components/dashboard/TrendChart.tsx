@@ -71,7 +71,7 @@ export function TrendChart({
 
   return (
     <Card className="overflow-hidden bg-white dark:bg-gray-900 border shadow-sm">
-      <CardHeader>
+      <CardHeader className="pb-2 sm:pb-6 px-3 pt-3 sm:px-6 sm:pt-6">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200">
@@ -99,8 +99,8 @@ export function TrendChart({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <ChartContainer config={chartConfig} className="h-[190px] sm:h-[280px] w-full">
+      <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
+        <ChartContainer config={chartConfig} className="h-[170px] sm:h-[280px] w-full">
           <ComposedChart data={datosFiltrados} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
@@ -234,7 +234,7 @@ export function MarginChart({ mesSeleccionado = 'acumulado' }: { mesSeleccionado
 
   return (
     <Card className="overflow-hidden bg-white dark:bg-gray-900 border shadow-sm">
-      <CardHeader>
+      <CardHeader className="pb-2 sm:pb-6 px-3 pt-3 sm:px-6 sm:pt-6">
         <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200">
           Evolución de Márgenes
         </CardTitle>
@@ -242,8 +242,8 @@ export function MarginChart({ mesSeleccionado = 'acumulado' }: { mesSeleccionado
           Margen bruto y neto {mesSeleccionado === 'acumulado' ? 'mensual' : 'hasta el mes seleccionado'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
-        <ChartContainer config={chartConfig} className="h-[145px] sm:h-[200px] w-full">
+      <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
+        <ChartContainer config={chartConfig} className="h-[125px] sm:h-[200px] w-full">
           <BarChart data={datosFiltrados} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
             <XAxis 

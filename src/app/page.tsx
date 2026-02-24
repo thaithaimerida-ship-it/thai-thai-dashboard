@@ -383,9 +383,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-6">
         {tabActivo === 'dashboard' && (
-          <div className="space-y-3 sm:space-y-6">
+          <div className="space-y-2.5 sm:space-y-6">
             {/* Estado */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-2.5 sm:px-4 py-1 sm:py-2 flex items-center gap-1.5 sm:gap-2">
@@ -404,43 +404,43 @@ export default function Dashboard() {
 
             {/* KPIs */}
             <section>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <DollarSign className="h-5 w-5 text-blue-600" />
                 <h2 className="text-sm font-semibold text-gray-700">KPIs Financieros</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                 {kpis.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
               </div>
             </section>
 
             <section>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <Target className="h-5 w-5 text-amber-500" />
                 <h2 className="text-sm font-semibold text-gray-700">KPIs de Restaurante</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                 {kpisRestaurante.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
               </div>
             </section>
 
             {/* KPIs de Brechas */}
             <section>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <TrendingUp className="h-5 w-5 text-green-500" />
                 <h2 className="text-sm font-semibold text-gray-700">Brechas vs Objetivos</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                 {kpisBrechas.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
               </div>
             </section>
 
             {/* Termómetros */}
             <section>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <Activity className="h-5 w-5 text-blue-600" />
                 <h2 className="text-sm font-semibold text-gray-700">Indicadores de Salud</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                 <ThermometerGauge titulo="Utilidad Bruta" valor={utilidadBrutaPorcentaje} tipo="margen" monto={Math.round(utilidadBruta)} />
                 <ThermometerGauge titulo="Cash Yield" valor={cashYield} tipo="margen" monto={Math.round(cashYieldMonto)} />
                 <ThermometerGauge titulo="Índice vs PE" valor={datosActuales.indiceVsPE * 100} tipo="indice" />
@@ -450,11 +450,11 @@ export default function Dashboard() {
 
             {/* KPIs Operativos - Food Cost, Labor, Costo Primo */}
             <section>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <BarChart3 className="h-5 w-5 text-purple-500" />
                 <h2 className="text-sm font-semibold text-gray-700">KPIs Operativos</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                 <KPICard 
                   kpi={{ 
                     titulo: 'Food Cost', 
@@ -493,16 +493,16 @@ export default function Dashboard() {
 
             {/* Recomendaciones */}
             <section>
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <Lightbulb className="h-5 w-5 text-amber-500" />
                 <h2 className="text-sm font-semibold text-gray-700">Recomendaciones</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4">
                 {recomendaciones.map((rec, index) => (
                   <Card key={index} className={cn('border-l-4', rec.tipo === 'alerta' && 'border-l-amber-500 bg-amber-50', rec.tipo === 'exito' && 'border-l-green-500 bg-green-50', rec.tipo === 'info' && 'border-l-blue-500 bg-blue-50')}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={cn('p-2 rounded-full', rec.tipo === 'alerta' && 'bg-amber-100', rec.tipo === 'exito' && 'bg-green-100', rec.tipo === 'info' && 'bg-blue-100')}>
+                    <CardContent className="px-3 py-2.5 sm:p-4">
+                      <div className="flex items-start gap-2.5 sm:gap-3">
+                        <div className={cn('p-1.5 sm:p-2 rounded-full', rec.tipo === 'alerta' && 'bg-amber-100', rec.tipo === 'exito' && 'bg-green-100', rec.tipo === 'info' && 'bg-blue-100')}>
                           {rec.tipo === 'alerta' && <AlertTriangle className="h-4 w-4 text-amber-600" />}
                           {rec.tipo === 'exito' && <CheckCircle className="h-4 w-4 text-green-600" />}
                           {rec.tipo === 'info' && <Info className="h-4 w-4 text-blue-600" />}

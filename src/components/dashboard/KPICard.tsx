@@ -94,11 +94,11 @@ export function KPICard({ kpi }: KPICardProps) {
 
   return (
     <Card className={cn(
-      'relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02] min-h-[100px] sm:min-h-[132px]',
+      'relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02] min-h-[82px] sm:min-h-[132px]',
       colors.bg,
       colors.border
     )}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-2.5 pt-2.5 sm:px-6 sm:pt-6">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2.5 pt-2 sm:px-6 sm:pt-6">
         <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 leading-tight">
           {kpi.titulo}
         </CardTitle>
@@ -106,7 +106,7 @@ export function KPICard({ kpi }: KPICardProps) {
           <span className="scale-90 sm:scale-100 block">{getIcon()}</span>
         </div>
       </CardHeader>
-      <CardContent className="px-2.5 pb-2.5 pt-0 sm:px-6 sm:pb-6">
+      <CardContent className="px-2.5 pb-2 pt-0 sm:px-6 sm:pb-6">
         <div className="flex items-end justify-between">
           <div>
             <div className={cn('text-xl sm:text-3xl font-bold leading-tight break-words', colors.accent)}>
