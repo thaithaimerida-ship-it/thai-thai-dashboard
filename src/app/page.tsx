@@ -408,6 +408,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
                 <DollarSign className="h-5 w-5 text-blue-600" />
                 <h2 className="text-sm font-semibold text-gray-700">KPIs Financieros</h2>
+                <p className="text-xs text-gray-500">Incluye: Utilidad Bruta, Cash Yield, Ventas Netas y Total de Gastos.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                 {kpis.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
@@ -626,3 +627,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

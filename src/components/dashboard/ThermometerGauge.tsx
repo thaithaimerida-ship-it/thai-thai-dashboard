@@ -167,7 +167,7 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
           {tipo === 'ventas' ? (
             <div className="w-full text-center mt-0.5 sm:mt-1">
               <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
-                Objetivo: {formatMonto(OBJETIVO_VENTAS_GAUGE)}
+                Objetivo: $325,000
               </p>
               <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
                 Avance: {Math.round(avanceVentas * 100) / 100}%
@@ -214,3 +214,4 @@ export function StatusBadge({ valor, tipo }: { valor: number; tipo: 'margen' | '
     </div>
   );
 }
+
