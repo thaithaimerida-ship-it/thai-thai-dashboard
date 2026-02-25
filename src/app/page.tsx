@@ -302,9 +302,9 @@ export default function Dashboard() {
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shrink-0">
                   <BarChart3 className="h-4 w-4 text-white" />
                 </div>
-                <div className="min-w-0">
-                  <h1 className="text-base font-semibold text-gray-900 leading-tight truncate">THAI THAI Dashboard</h1>
-                  <p className="text-xs text-gray-500 truncate">Datos en tiempo real desde Google Sheets</p>
+                <div className="flex flex-col min-w-0">
+                  <h1 className="text-sm font-semibold text-gray-900 truncate leading-tight">THAI THAI</h1>
+                  <p className="text-xs text-gray-500 truncate leading-tight">Datos en tiempo real...</p>
                 </div>
               </div>
 
