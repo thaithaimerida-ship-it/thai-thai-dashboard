@@ -296,36 +296,39 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20 lg:h-24">
-            <div className="flex items-center min-w-0 flex-1">
-              <div className="sm:hidden flex items-center gap-2 min-w-0">
-                <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
-                  <BarChart3 className="h-4 w-4 text-white" />
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-1.5 sm:gap-y-0 h-auto py-2 sm:py-4 lg:py-5">
+            <div className="flex items-center min-w-0 flex-1 sm:basis-[60%] lg:basis-[65%]">
+              <div className="sm:hidden flex items-center min-w-0">
+                <div className="h-6 w-[130px] relative">
+                  <Image
+                    src="/logo-thai-thai.svg"
+                    alt="Thai Thai"
+                    fill
+                    sizes="130px"
+                    className="object-contain object-left"
+                    priority
+                  />
                 </div>
-                <span className="text-sm font-semibold tracking-wide text-gray-900 truncate">Thai Thai</span>
               </div>
 
-              <div className="hidden sm:flex items-center gap-3 lg:gap-4 min-w-0">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
-                  <BarChart3 className="h-5 w-5 text-white" />
-                </div>
+              <div className="hidden sm:flex items-center min-w-0">
                 <div className="min-w-0">
-                  <div className="h-9 lg:h-10 w-[200px] lg:w-[240px] relative">
+                  <div className="h-[3.75rem] lg:h-[5.5rem] w-[460px] lg:w-[560px] relative">
                     <Image
                       src="/logo-thai-thai.svg"
                       alt="Thai Thai"
                       fill
-                      sizes="(max-width: 1024px) 200px, 240px"
+                      sizes="(max-width: 1024px) 460px, 560px"
                       className="object-contain object-left"
                       priority
                     />
                   </div>
-                  <p className="text-xs text-gray-500 truncate">Datos en tiempo real desde Google Sheets</p>
+                  <p className="mt-1.5 lg:mt-2 text-xs lg:text-sm leading-tight text-gray-500 truncate">Datos en tiempo real desde Google Sheets</p>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-1.5 sm:gap-2 ml-2">
+            <div className="w-full sm:w-auto flex items-center justify-end gap-2">
               {lastUpdate && (
                 <span className="text-xs text-gray-500 hidden sm:block">
                   Actualizado: {lastUpdate.toLocaleTimeString('es-MX')}
@@ -343,8 +346,8 @@ export default function Dashboard() {
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 pointer-events-none" />
               </div>
-              <button onClick={refetch} className="p-1 sm:p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Actualizar datos">
-                <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <button onClick={refetch} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-600" title="Actualizar datos">
+                <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-600" />
               </button>
             </div>
           </div>
