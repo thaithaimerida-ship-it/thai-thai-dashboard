@@ -155,6 +155,16 @@ export function getMesAnio(fecha: Date): string {
   return `${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
 }
 
+function normalizeText(value: string | null | undefined): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+const FOOD_COST_CATEGORIAS = new Set(['insumos alimentos', 'insumos bebidas']);
+
 export function useGoogleSheets() {
   const [ingresos, setIngresos] = useState<IngresoRow[]>([]);
   const [gastos, setGastos] = useState<GastoRow[]>([]);
@@ -308,18 +318,18 @@ export function procesarDatosDashboard(ingresos: IngresoRow[], gastos: GastoRow[
     if (!fecha) return;
     
     const mesKey = getMesAnio(fecha);
-    const grupoPL = gas['Grupo P&L'] || '';
-    const categoria = gas.Categoría || '';
+    const grupoPLNormalizado = normalizeText(gas['Grupo P&L']);
+    const categoriaNormalizada = normalizeText((gas as Record<string, string>)['Categoría'] || gas.Categoría);
     
     // Trackear Impuestos y Financiamientos (para Cash Yield)
-    if (categoria === 'Impuestos Sat' || categoria === 'Prestamo BBVA') {
-      const total = Math.abs(parseMoney(gas.Total));
+    if (categoriaNormalizada === 'impuestos sat' || categoriaNormalizada === 'prestamo bbva') {
+      const total = -parseMoney(gas.Total);
       impuestosFinanciamientosPorMes[mesKey] = (impuestosFinanciamientosPorMes[mesKey] || 0) + total;
       return; // No incluir en gastos operativos
     }
     
     // Solo incluir gastos operativos del negocio (basado en Grupo P&L)
-    if (grupoPL !== 'Costo de Venta' && grupoPL !== 'Gastos Operativos') return;
+    if (grupoPLNormalizado !== 'costo de venta' && grupoPLNormalizado !== 'gastos operativos') return;
     
     if (!datosPorMes[mesKey]) {
       datosPorMes[mesKey] = {
@@ -329,17 +339,18 @@ export function procesarDatosDashboard(ingresos: IngresoRow[], gastos: GastoRow[
       };
     }
     
-    const total = Math.abs(parseMoney(gas.Total));
+    // Convierte gastos (normalmente negativos) a positivo y mantiene notas de crédito restando.
+    const total = -parseMoney(gas.Total);
     datosPorMes[mesKey].gastos += total;
     datosPorMes[mesKey].gastosDetalle.push(gas);
     
-    // Separar Costo de Venta (Food Cost)
-    if (grupoPL === 'Costo de Venta') {
+    // Food Cost: SOLO Insumos Alimentos + Insumos Bebidas
+    if (FOOD_COST_CATEGORIAS.has(categoriaNormalizada)) {
       datosPorMes[mesKey].costoVenta += total;
     }
     
     // Separar Nómina (Labor)
-    if (categoria === 'Nómina') {
+    if (categoriaNormalizada === 'nomina') {
       datosPorMes[mesKey].nomina += total;
     }
   });

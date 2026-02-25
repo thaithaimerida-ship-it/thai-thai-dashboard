@@ -14,12 +14,22 @@ interface ThermometerGaugeProps {
 }
 
 export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: ThermometerGaugeProps) {
-  const estado = getEstadoIndicador(valor, tipo);
+  const OBJETIVO_VENTAS_GAUGE = 325000;
+  const estadoGeneral = getEstadoIndicador(valor, tipo);
+  const avanceVentas = Math.max(0, (valor / OBJETIVO_VENTAS_GAUGE) * 100);
+  const estadoVentas = avanceVentas >= 100
+    ? { color: '#22c55e', emoji: '🟢', nivel: 'Excelente', descripcion: 'Meta alcanzada' }
+    : avanceVentas >= 90
+      ? { color: '#84cc16', emoji: '🟢', nivel: 'Bueno', descripcion: 'Muy cerca de la meta' }
+      : avanceVentas >= 75
+        ? { color: '#eab308', emoji: '🟡', nivel: 'Alerta', descripcion: 'Aún por debajo del objetivo' }
+        : { color: '#ef4444', emoji: '🔴', nivel: 'Crítico', descripcion: 'Lejos del objetivo' };
+  const estado = tipo === 'ventas' ? estadoVentas : estadoGeneral;
   
   // Calcular el porcentaje para el gauge (0-100)
   const getMaxValue = () => {
     if (tipo === 'margen') return 50;
-    if (tipo === 'ventas') return 200000;
+    if (tipo === 'ventas') return OBJETIVO_VENTAS_GAUGE;
     if (tipo === 'indice') return 150; // 150% = 1.5 veces el PE
     return 100; // gastos como porcentaje
   };
@@ -77,7 +87,7 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
 
   return (
     <Card className="overflow-hidden bg-white dark:bg-gray-900 border shadow-sm">
-      <CardHeader className="pb-0.5 sm:pb-2 px-2.5 pt-2 sm:px-6 sm:pt-6">
+      <CardHeader className="pb-0.5 sm:pb-1.5 px-2.5 pt-2 sm:px-4 sm:pt-4">
         <CardTitle className="text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 text-gray-700 dark:text-gray-300">
           {titulo}
           {descripcion && (
@@ -90,18 +100,18 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 px-2.5 pb-2 sm:px-6 sm:pb-6">
-        <div className="flex flex-col items-center gap-1 sm:gap-2">
+      <CardContent className="pt-0 px-2.5 pb-2 sm:px-4 sm:pb-4">
+        <div className="flex flex-col items-center gap-1 sm:gap-1.5">
           {/* Gauge SVG */}
           <div className="w-full flex justify-center">
-            <div className="relative w-36 h-14 sm:w-48 sm:h-24">
+            <div className="relative w-32 h-12 sm:w-40 sm:h-20">
             <svg viewBox="0 0 200 120" className="w-full h-full">
               {/* Arco de fondo */}
               <path
                 d={backgroundPath}
                 fill="none"
                 stroke="#e5e7eb"
-                strokeWidth="16"
+                strokeWidth="12"
                 strokeLinecap="round"
               />
               
@@ -116,7 +126,7 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
                 d={valuePath}
                 fill="none"
                 stroke={`url(#gradient-${titulo.replace(/\s/g, '')})`}
-                strokeWidth="16"
+                strokeWidth="12"
                 strokeLinecap="round"
                 className="transition-all duration-1000 ease-out"
               />
@@ -144,7 +154,7 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
 
           {/* Valor y monto en flujo normal para evitar overlap con el SVG */}
           <div className="w-full text-center">
-            <span className="text-lg sm:text-2xl font-bold leading-none" style={{ color: estado.color }}>
+            <span className="text-base sm:text-xl font-bold leading-none" style={{ color: estado.color }}>
               {formatValue()}
             </span>
             {monto && (tipo === 'margen' || tipo === 'indice') && (
@@ -153,22 +163,32 @@ export function ThermometerGauge({ titulo, valor, tipo, descripcion, monto }: Th
               </span>
             )}
           </div>
-          
-          {/* Indicador de estado */}
-          <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2 mt-0 sm:mt-2">
-            <span className="text-base sm:text-lg">{estado.emoji}</span>
-            <div className="flex flex-col">
-              <span 
-                className="text-xs sm:text-sm font-semibold"
-                style={{ color: estado.color }}
-              >
-                {estado.nivel}
-              </span>
-              <span className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
-                {estado.descripcion}
-              </span>
+
+          {tipo === 'ventas' ? (
+            <div className="w-full text-center mt-0.5 sm:mt-1">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+                Objetivo: {formatMonto(OBJETIVO_VENTAS_GAUGE)}
+              </p>
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+                Avance: {Math.round(avanceVentas * 100) / 100}%
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2 mt-0 sm:mt-1">
+              <span className="text-sm sm:text-base">{estado.emoji}</span>
+              <div className="flex flex-col">
+                <span
+                  className="text-[11px] sm:text-xs font-semibold"
+                  style={{ color: estado.color }}
+                >
+                  {estado.nivel}
+                </span>
+                <span className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
+                  {estado.descripcion}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

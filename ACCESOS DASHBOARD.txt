@@ -1,0 +1,19 @@
+Dashboard Thai Thai - Accesos
+
+1) URL Vercel (remoto):
+https://thai-thai-dashboard.vercel.app
+
+2) Repo GitHub:
+https://github.com/thaithaimerida-ship-it/thai-thai-dashboard
+
+3) Comando local (en VS Code, terminal):
+bun run dev
+
+4) Carpeta del proyecto (local):
+C:\Users\usuario\Downloads\thai-thai-dashboard-RESPALDO-2026-02-23
+
+5) URL local en laptop:
+http://localhost:3000
+
+6) URL en celular (misma WiFi, cambia según tu red):
+(ver línea "Network" en la terminal cuando corres bun run dev)

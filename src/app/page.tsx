@@ -178,6 +178,7 @@ export default function Dashboard() {
   const porcentajeVsObjetivo = Math.round((datosActuales.ventas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
   const utilidadBruta = datosActuales.ventas - datosActuales.gastos;
   const utilidadBrutaPorcentaje = datosActuales.ventas > 0 ? Math.round((utilidadBruta / datosActuales.ventas) * 10000) / 100 : 0;
+  const gastosOperativosSinCostoVenta = (datosActuales.gastos || 0) - (datosActuales.costoVenta || 0);
   
   const kpis = [
     { 
@@ -207,12 +208,12 @@ export default function Dashboard() {
       descripcion: `${porcentajeVsObjetivo}% vs objetivo ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
     },
     { 
-      titulo: 'Gastos Operativos', 
+      titulo: 'Total de Gastos', 
       valor: datosActuales.gastos, 
       unidad: '$', 
       tendencia: 0, 
       estado: 'bueno' as const, 
-      descripcion: 'Costo de Venta + Gastos Op' 
+      descripcion: `Costo de venta + Gastos Op\nCV: ${formatCurrency(datosActuales.costoVenta || 0)} | GO: ${formatCurrency(gastosOperativosSinCostoVenta)}` 
     },
   ];
 

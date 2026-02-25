@@ -94,22 +94,22 @@ export function KPICard({ kpi }: KPICardProps) {
 
   return (
     <Card className={cn(
-      'relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02] min-h-[82px] sm:min-h-[132px]',
+      'relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.01] min-h-[76px] sm:min-h-[112px]',
       colors.bg,
       colors.border
     )}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2.5 pt-2 sm:px-6 sm:pt-6">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-1.5 px-2.5 pt-2 sm:px-4 sm:pt-4">
         <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 leading-tight">
           {kpi.titulo}
         </CardTitle>
-        <div className={cn('p-1 sm:p-2 rounded-full bg-white/50 dark:bg-black/20', colors.accent)}>
-          <span className="scale-90 sm:scale-100 block">{getIcon()}</span>
+        <div className={cn('p-1 sm:p-1.5 rounded-full bg-white/50 dark:bg-black/20', colors.accent)}>
+          <span className="scale-90 block">{getIcon()}</span>
         </div>
       </CardHeader>
-      <CardContent className="px-2.5 pb-2 pt-0 sm:px-6 sm:pb-6">
+      <CardContent className="px-2.5 pb-2 pt-0 sm:px-4 sm:pb-4">
         <div className="flex items-end justify-between">
           <div>
-            <div className={cn('text-xl sm:text-3xl font-bold leading-tight break-words', colors.accent)}>
+            <div className={cn('text-lg sm:text-2xl font-bold leading-tight break-words', colors.accent)}>
               {formatValue(kpi.valor, kpi.unidad)}
             </div>
             {/* Mostrar monto si existe (para porcentajes) */}
@@ -118,7 +118,7 @@ export function KPICard({ kpi }: KPICardProps) {
                 = {formatMonto(kpi.monto)}
               </div>
             )}
-            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 whitespace-pre-line leading-snug">
               {kpi.descripcion}
             </p>
           </div>
