@@ -299,14 +299,17 @@ export default function Dashboard() {
           <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-1.5 sm:gap-y-0 h-auto py-2 sm:py-4 lg:py-5">
             <div className="flex items-center min-w-0 flex-1 sm:basis-[60%] lg:basis-[65%]">
               <div className="sm:hidden flex items-center gap-2 min-w-0">
-                {/* Icono Azul */}
-                <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shrink-0">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shrink-0">
                   <BarChart3 className="h-4 w-4 text-white" />
                 </div>
-                {/* Texto a la derecha */}
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-gray-900 truncate leading-tight">THAI THAI</span>
-                  <span className="text-xs text-gray-500 truncate leading-tight">Datos en tiempo real</span>
+
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    THAI THAI Dashboard
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    Datos en tiempo real desde Google Sheets
+                  </p>
                 </div>
               </div>
 
