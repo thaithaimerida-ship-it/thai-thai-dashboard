@@ -196,7 +196,8 @@ export default function Dashboard() {
       unidad: '%', 
       tendencia: 0, 
       estado: cashYield >= 12 ? (cashYield >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
-      descripcion: 'Utilidad neta despuÃ©s de impuestos',
+      descripcion: 'Utilidad neta después de impuestos
+Objetivo: 12% - 18%',
       monto: Math.round(cashYieldMonto)
     },
     { 
