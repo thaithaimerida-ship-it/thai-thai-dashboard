@@ -298,16 +298,16 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-1.5 sm:gap-y-0 h-auto py-2 sm:py-4 lg:py-5">
             <div className="flex items-center min-w-0 flex-1 sm:basis-[60%] lg:basis-[65%]">
-              <div className="sm:hidden flex items-center gap-2 min-w-0">
+              <div className="sm:hidden flex items-center gap-2 min-w-0 w-full">
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shrink-0">
                   <BarChart3 className="h-4 w-4 text-white" />
                 </div>
 
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 leading-tight">
                     THAI THAI Dashboard
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 leading-tight truncate">
                     Datos en tiempo real desde Google Sheets
                   </p>
                 </div>
