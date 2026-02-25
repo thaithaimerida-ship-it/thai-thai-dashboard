@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { ThermometerGauge } from '@/components/dashboard/ThermometerGauge';
@@ -295,18 +296,36 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-12 sm:h-16">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="p-1 sm:p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
-                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+          <div className="flex items-center justify-between h-16 sm:h-20 lg:h-24">
+            <div className="flex items-center min-w-0 flex-1">
+              <div className="sm:hidden flex items-center gap-2 min-w-0">
+                <div className="p-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-white" />
+                </div>
+                <span className="text-sm font-semibold tracking-wide text-gray-900 truncate">Thai Thai</span>
               </div>
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-lg font-bold text-gray-900 leading-tight truncate">THAI THAI Dashboard</h1>
-                <p className="text-[11px] sm:text-xs text-gray-500 truncate">Datos en tiempo real desde Google Sheets</p>
+
+              <div className="hidden sm:flex items-center gap-3 lg:gap-4 min-w-0">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg">
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <div className="h-9 lg:h-10 w-[200px] lg:w-[240px] relative">
+                    <Image
+                      src="/logo-thai-thai.svg"
+                      alt="Thai Thai"
+                      fill
+                      sizes="(max-width: 1024px) 200px, 240px"
+                      className="object-contain object-left"
+                      priority
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">Datos en tiempo real desde Google Sheets</p>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-2">
               {lastUpdate && (
                 <span className="text-xs text-gray-500 hidden sm:block">
                   Actualizado: {lastUpdate.toLocaleTimeString('es-MX')}
