@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAdsData } from '@/hooks/useAdsData';
+import { useAdsData, getLastMonths } from '@/hooks/useAdsData';
 import {
   AlertTriangle, RefreshCw, Users, WifiOff, Wifi,
 } from 'lucide-react';
@@ -14,8 +15,17 @@ function formatMXN(value: number): string {
   }).format(value);
 }
 
+const MONTH_OPTIONS = [
+  { label: 'Actual', value: '' },
+  { label: 'Mes en curso', value: 'current' },
+  ...getLastMonths(6),
+];
+
 export function AdsPerformance() {
-  const { ads, crossMetrics, loading, error, lastUpdate, refetch } = useAdsData();
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const { ads, crossMetrics, loading, error, lastUpdate, refetch } = useAdsData(
+    selectedMonth || undefined
+  );
 
   if (loading && !ads) {
     return (
@@ -51,25 +61,56 @@ export function AdsPerformance() {
 
   return (
     <div className="space-y-6">
-      {/* Header con estado de conexión */}
-      <div className="flex items-center justify-between">
+      {/* Header: estado de conexión + selector de mes */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <Wifi className="h-4 w-4 text-emerald-500" />
           <span className="text-xs text-muted-foreground">
-            Datos del agente
-            {lastUpdate && ` · ${new Date(lastUpdate).toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit' })}`}
+            {selectedMonth
+              ? `Datos históricos · ${MONTH_OPTIONS.find(o => o.value === selectedMonth)?.label}`
+              : `Snapshot en vivo${lastUpdate ? ` · ${new Date(lastUpdate).toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit' })}` : ''}`
+            }
           </span>
         </div>
-        <button
-          onClick={refetch}
-          className="p-1.5 hover:bg-muted rounded-md transition-colors"
-          title="Actualizar"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Pills de mes */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {MONTH_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedMonth(opt.value)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                  selectedMonth === opt.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Refresh */}
+          <button
+            onClick={refetch}
+            className="p-1.5 hover:bg-muted rounded-md transition-colors"
+            title="Actualizar"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      {/* Métrica estrella: costo por comensal */}
+      {/* Loading overlay cuando hay data pero está refrescando */}
+      {loading && ads && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          Cargando datos...
+        </div>
+      )}
+
+      {/* Métrica estrella: costo por comensal (solo disponible en snapshot) */}
       {crossMetrics && crossMetrics.costo_por_comensal > 0 && (
         <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20">
           <CardContent className="pt-6">
