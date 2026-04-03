@@ -49,3 +49,16 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Google Ads credentials
+google-ads.yaml
