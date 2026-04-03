@@ -10,6 +10,7 @@ import { TopItemsChart } from '@/components/dashboard/TopItemsChart';
 import { ComisionesPlataformas } from '@/components/dashboard/ComisionesPlataformas';
 import { ProyeccionPECard } from '@/components/dashboard/ProyeccionPE';
 import { AnalisisRangoFechas } from '@/components/dashboard/AnalisisRangoFechas';
+import { AdsPerformance } from '@/components/dashboard/AdsPerformance';
 import { CONSTANTES_NEGOCIO, chartColors } from '@/data/realData';
 import { useGoogleSheets, procesarDatosDashboard, parseMoney, parseFecha, getMesAnio } from '@/hooks/useGoogleSheets';
 import { 
@@ -19,7 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type TabId = 'dashboard' | 'comisiones' | 'proyeccion' | 'analisis' | 'automatizacion';
+type TabId = 'dashboard' | 'comisiones' | 'proyeccion' | 'analisis' | 'automatizacion' | 'ads';
 
 export default function Dashboard() {
   const { ingresos, gastos, cortesCaja, loading, error, lastUpdate, refetch, dataStatus } = useGoogleSheets();
@@ -93,6 +94,7 @@ export default function Dashboard() {
     { id: 'proyeccion' as const, label: 'Proyección PE', icon: Calculator },
     { id: 'analisis' as const, label: 'Análisis Fechas', icon: Filter },
     { id: 'automatizacion' as const, label: 'Automatizar', icon: Settings },
+    { id: 'ads' as const, label: 'Google Ads', icon: Target },
   ];
 
   // Loading state
@@ -568,6 +570,10 @@ export default function Dashboard() {
             </div>
             <AnalisisRangoFechas gastosRaw={gastos} />
           </div>
+        )}
+
+        {tabActivo === 'ads' && (
+          <AdsPerformance />
         )}
 
         {tabActivo === 'automatizacion' && (
