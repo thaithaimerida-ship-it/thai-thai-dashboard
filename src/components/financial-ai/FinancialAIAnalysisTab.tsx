@@ -31,7 +31,8 @@ export function FinancialAIAnalysisTab({
     ? 'Financial AI V1 no usa YTD. Selecciona un mes cerrado.'
     : 'Selecciona un mes cerrado para generar el análisis.';
   const canShowEmptyState = !isYtdSelected && isClosedMonth;
-  const shouldShowMockReport = showMockReport && canShowEmptyState;
+  const shouldShowMockReport = showMockReport;
+  const shouldShowDemoPeriodNote = shouldShowMockReport && !canShowEmptyState;
 
   return (
     <div className="space-y-4">
@@ -59,10 +60,18 @@ export function FinancialAIAnalysisTab({
       </div>
 
       {shouldShowMockReport ? (
-        <FinancialAIReportView
-          report={mockFinancialAIReport}
-          selectedMonthLabel={selectedMonthLabel}
-        />
+        <div className="space-y-4">
+          {shouldShowDemoPeriodNote && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              El periodo seleccionado no es vÃ¡lido para generaciÃ³n real, pero se muestra
+              una vista demo para revisiÃ³n visual. No conectado a datos reales.
+            </div>
+          )}
+          <FinancialAIReportView
+            report={mockFinancialAIReport}
+            selectedMonthLabel={selectedMonthLabel}
+          />
+        </div>
       ) : (
         <Card className="overflow-hidden border-slate-200 bg-white">
         <CardHeader className="border-b border-slate-100 bg-slate-50/80">
