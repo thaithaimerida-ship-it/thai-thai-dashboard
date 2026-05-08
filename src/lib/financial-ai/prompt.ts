@@ -33,10 +33,10 @@ export function buildFinancialAIUserPrompt(payload: FinancialAIPayload): string 
       {
         metadata: {
           periodo: 'string',
-          tipo_periodo: 'monthly | ytd',
+          tipo_periodo: 'monthly',
           fecha_generacion: 'string ISO',
-          estado_reporte: 'abierto | cerrado',
-          locked: 'boolean',
+          estado_reporte: 'cerrado',
+          locked: 'true',
         },
         resumen_ejecutivo: 'string',
         diagnostico_general: {
@@ -147,9 +147,10 @@ export function buildFinancialAIUserPrompt(payload: FinancialAIPayload): string 
     '- No uses null en campos donde el contrato pide string o number.',
     '- En analisis_canales.canales.porcentaje_comision usa 0 si el payload no tiene porcentaje disponible.',
     '- metadata.periodo debe ser payload.periodo.id.',
-    '- metadata.tipo_periodo debe ser payload.periodo.tipo.',
-    '- metadata.estado_reporte debe ser "cerrado" para monthly y "abierto" para ytd.',
-    '- metadata.locked debe ser true para monthly y false para ytd.',
+    '- metadata.tipo_periodo debe ser "monthly".',
+    '- metadata.estado_reporte debe ser "cerrado".',
+    '- metadata.locked debe ser true.',
+    '- El reporte es exclusivamente mensual cerrado.',
     '- Si faltan datos comparativos, dilo en comparativo.nota_disponibilidad_datos.',
     '',
     'Payload:',

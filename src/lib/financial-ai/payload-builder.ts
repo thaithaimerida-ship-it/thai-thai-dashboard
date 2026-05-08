@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { readSheetRows, type SheetRows } from '../google-sheets-server';
-import { isMonthClosed, lastClosedMonth, parsePeriodId, type Period } from './period';
+import { isMonthClosed, parsePeriodId, type Period } from './period';
 import { FINANCIAL_AI_TARGETS } from './targets';
 import { InsufficientFinancialDataError } from './errors';
 
@@ -67,9 +67,11 @@ interface AggregatePayload extends ComparativoPayload {
 export interface FinancialAIPayload {
   periodo: {
     id: string;
-    tipo: 'monthly' | 'ytd';
+    tipo: 'monthly';
     anio: number;
-    mes: number | null;
+    mes: number;
+    estado_reporte: 'cerrado';
+    locked: true;
     rango: {
       inicio: string;
       fin: string;
@@ -207,40 +209,20 @@ function endOfMonth(year: number, month: number): Date {
 }
 
 function buildPeriodWindow(period: Period): PeriodWindow {
-  if (period.type === 'MENSUAL') {
-    if (period.month === null) throw new Error('Periodo mensual sin mes');
-    if (!isMonthClosed(period.year, period.month)) {
-      throw new InsufficientFinancialDataError(
-        `El periodo mensual ${period.id} aun no esta cerrado`,
-      );
-    }
-
-    return {
-      start: new Date(period.year, period.month - 1, 1),
-      end: endOfMonth(period.year, period.month),
-      label: monthLabel(period.year, period.month),
-    };
-  }
-
-  const lastClosed = lastClosedMonth();
-  const endMonth =
-    period.year < lastClosed.year ? 12 : period.year === lastClosed.year ? lastClosed.month : 0;
-  if (endMonth === 0) {
+  if (!isMonthClosed(period.year, period.month)) {
     throw new InsufficientFinancialDataError(
-      `No hay meses cerrados disponibles para ${period.id}`,
+      `El periodo mensual ${period.id} aun no esta cerrado`,
     );
   }
 
   return {
-    start: new Date(period.year, 0, 1),
-    end: endOfMonth(period.year, endMonth),
-    label: `YTD-${period.year}`,
+    start: new Date(period.year, period.month - 1, 1),
+    end: endOfMonth(period.year, period.month),
+    label: monthLabel(period.year, period.month),
   };
 }
 
 function previousMonthWindow(period: Period): PeriodWindow | null {
-  if (period.type !== 'MENSUAL' || period.month === null) return null;
-
   const previousMonth = period.month === 1 ? 12 : period.month - 1;
   const previousYear = period.month === 1 ? period.year - 1 : period.year;
 
@@ -472,9 +454,11 @@ export async function buildFinancialAIPayload(periodId: string): Promise<Financi
   return {
     periodo: {
       id: period.id,
-      tipo: period.type === 'MENSUAL' ? 'monthly' : 'ytd',
+      tipo: 'monthly',
       anio: period.year,
       mes: period.month,
+      estado_reporte: 'cerrado',
+      locked: true,
       rango: {
         inicio: isoDate(window.start),
         fin: isoDate(window.end),

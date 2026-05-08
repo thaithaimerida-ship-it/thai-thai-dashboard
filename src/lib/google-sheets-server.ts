@@ -220,7 +220,7 @@ export async function appendClosedMonthlyReport(report: NewReportesIARow): Promi
   if (!parsed.ok) {
     throw new Error(`ID_Periodo mensual invalido: ${parsed.error}`);
   }
-  if (parsed.period.type !== 'MENSUAL' || parsed.period.month === null) {
+  if (parsed.period.type !== 'MENSUAL') {
     throw new Error('appendClosedMonthlyReport solo acepta periodos mensuales YYYY-MM');
   }
   if (!isMonthClosed(parsed.period.year, parsed.period.month)) {
@@ -234,19 +234,7 @@ export async function appendClosedMonthlyReport(report: NewReportesIARow): Promi
 }
 
 export async function upsertYTDReport(report: NewReportesIARow): Promise<void> {
-  await ensureReportesIASheet();
-  const parsed = parsePeriodId(report.ID_Periodo);
-  if (!parsed.ok) {
-    throw new Error(`ID_Periodo YTD invalido: ${parsed.error}`);
-  }
-  if (parsed.period.type !== 'YTD') {
-    throw new Error('upsertYTDReport solo acepta periodos YTD-YYYY');
-  }
-  const existing = await findReportByPeriod(report.ID_Periodo);
-  const row = reportToRow(report);
-  if (existing) {
-    await updateSheetRow(REPORTES_IA_SHEET_NAME, existing.rowIndex, row);
-    return;
-  }
-  await appendSheetRows(REPORTES_IA_SHEET_NAME, [row]);
+  throw new Error(
+    `YTD no esta disponible en Financial AI V1; no se escribio ${report.ID_Periodo}`,
+  );
 }

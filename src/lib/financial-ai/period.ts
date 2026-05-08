@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 
-export type PeriodType = 'MENSUAL' | 'YTD';
+export type PeriodType = 'MENSUAL';
 
 export interface Period {
   id: string;
   type: PeriodType;
   year: number;
-  month: number | null;
+  month: number;
 }
 
 export type ParsePeriodOutcome =
@@ -14,20 +14,10 @@ export type ParsePeriodOutcome =
   | { ok: false; error: string };
 
 const MES_RE = /^(\d{4})-(\d{2})$/;
-const YTD_RE = /^YTD-(\d{4})$/;
 
 export function parsePeriodId(periodId: string): ParsePeriodOutcome {
   if (typeof periodId !== 'string' || periodId.length === 0) {
-    return { ok: false, error: 'periodo inválido' };
-  }
-
-  const ytdMatch = YTD_RE.exec(periodId);
-  if (ytdMatch) {
-    const year = Number(ytdMatch[1]);
-    if (!Number.isInteger(year) || year < 2020 || year > 2100) {
-      return { ok: false, error: 'año fuera de rango' };
-    }
-    return { ok: true, period: { id: periodId, type: 'YTD', year, month: null } };
+    return { ok: false, error: 'periodo invalido (use YYYY-MM)' };
   }
 
   const mensualMatch = MES_RE.exec(periodId);
@@ -35,15 +25,15 @@ export function parsePeriodId(periodId: string): ParsePeriodOutcome {
     const year = Number(mensualMatch[1]);
     const month = Number(mensualMatch[2]);
     if (!Number.isInteger(year) || year < 2020 || year > 2100) {
-      return { ok: false, error: 'año fuera de rango' };
+      return { ok: false, error: 'anio fuera de rango (use YYYY-MM)' };
     }
     if (!Number.isInteger(month) || month < 1 || month > 12) {
-      return { ok: false, error: 'mes fuera de rango' };
+      return { ok: false, error: 'mes fuera de rango (use YYYY-MM)' };
     }
     return { ok: true, period: { id: periodId, type: 'MENSUAL', year, month } };
   }
 
-  return { ok: false, error: 'formato no reconocido (use YYYY-MM o YTD-YYYY)' };
+  return { ok: false, error: 'formato no reconocido (use YYYY-MM)' };
 }
 
 export function isMonthClosed(year: number, month: number, now: Date = new Date()): boolean {
@@ -52,13 +42,6 @@ export function isMonthClosed(year: number, month: number, now: Date = new Date(
   if (year < currentYear) return true;
   if (year === currentYear && month < currentMonth) return true;
   return false;
-}
-
-export function lastClosedMonth(now: Date = new Date()): { year: number; month: number } {
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-  if (m === 1) return { year: y - 1, month: 12 };
-  return { year: y, month: m - 1 };
 }
 
 export function computeDataHash(payload: unknown): string {
