@@ -20,7 +20,8 @@ const rules = [
   { label: 'Sin YTD en V1', icon: Info },
 ] as const;
 
-const showMockReport = true;
+// Mock visual desactivado por defecto. No activar en producción.
+const showMockReport = false;
 
 export function FinancialAIAnalysisTab({
   selectedMonthLabel,
