@@ -302,8 +302,7 @@ export default function Dashboard() {
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">THAI THAI Dashboard</h1>
-                <p className="text-xs text-gray-500">Datos en tiempo real desde Google Sheets</p>
+                <h1 className="text-lg font-bold text-gray-900">Thai Thai</h1>
               </div>
             </div>
             
