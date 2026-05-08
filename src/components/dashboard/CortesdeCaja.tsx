@@ -177,9 +177,10 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
   const maxDay = Math.max(...(cur.days?.map(d => d.vci) || [1]), 1);
 
   // PE and Objetivo with IVA
-  const PE_IVA = 342200;
-  const OBJ_IVA = 377000;
-  const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
+  const PE_IVA = 405000;
+  const OBJ_IVA = 445000;
+  const MIN_SCALE = 380000;
+const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
 
   return (
     <div className="space-y-4 pb-6">
@@ -344,8 +345,8 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
         <div className="overflow-x-auto">
           <div className="flex items-end gap-3 min-w-[360px] relative" style={{ height: '320px', paddingBottom: '44px', paddingTop: '30px' }}>
             {/* Reference lines */}
-            {[{ val: PE_IVA, color: '#ef4444', label: 'PE ~$342k' }, { val: OBJ_IVA, color: '#10b981', label: 'Obj ~$377k' }].map(ref => {
-              const btm = Math.round(ref.val / maxBarRef * 246) + 44;
+            {[{ val: PE_IVA, color: '#ef4444', label: 'PE $405k' }, { val: OBJ_IVA, color: '#10b981', label: 'Obj $445k' }].map(ref => {
+              const btm = Math.round((ref.val - MIN_SCALE) / (maxBarRef - MIN_SCALE) * 246) + 44;
               return (
                 <div key={ref.label} className="absolute left-0 right-0 flex items-center pointer-events-none" style={{ bottom: `${btm}px` }}>
                   <div className="flex-1 border-t-2 border-dashed" style={{ borderColor: ref.color }}/>
@@ -354,7 +355,7 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
               );
             })}
             {monthlySummary.map(m => {
-              const barH = Math.max(8, Math.round(m.vci / maxBarRef * 246));
+              const barH = m.vci < MIN_SCALE ? 6 : Math.max(6, Math.round((m.vci - MIN_SCALE) / (maxBarRef - MIN_SCALE) * 246));
               const isCur = m.key === activeMesKey || activeMesKey === 'ytd';
               const isPartial = m.dias < 20;
               const perfColor = m.vci >= OBJ_IVA ? '#10b981' : m.vci >= PE_IVA ? '#3b82f6' : '#f59e0b';
@@ -386,7 +387,7 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
           </div>
         </div>
         <div className="flex gap-4 text-xs text-gray-400 mt-1 flex-wrap">
-          <span><span className="inline-block w-4 border-t-2 border-dashed border-red-400 align-middle mr-1"/>PE ~$342k</span>
+          <span><span className="inline-block w-4 border-t-2 border-dashed border-red-400 align-middle mr-1"/>PE $405k</span>
           <span><span className="inline-block w-4 border-t-2 border-dashed border-green-400 align-middle mr-1"/>Objetivo ~$377k</span>
           <span className="text-gray-300">⭐ Mes parcial</span>
         </div>
