@@ -450,7 +450,7 @@ const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
       </div>
 
       {/* DOW ANALYSIS */}
-      <DowAnalysis days={KEYS.flatMap(k => byMonth[k]?.days || [])} />
+      <DowAnalysis days={sortedMonths.flatMap(k => byMonth[k]?.days || [])} />
 
       {/* VENTAS MENSUALES VERTICAL */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
