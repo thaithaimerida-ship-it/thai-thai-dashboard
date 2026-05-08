@@ -1,0 +1,503 @@
+import 'server-only';
+
+import { readSheetRows, type SheetRows } from '../google-sheets-server';
+import { isMonthClosed, lastClosedMonth, parsePeriodId, type Period } from './period';
+import { FINANCIAL_AI_TARGETS } from './targets';
+import { InsufficientFinancialDataError } from './errors';
+
+const SHEETS = {
+  ingresos: 'Ingresos_BD',
+  gastos: 'Gastos_BD',
+  cortesCaja: 'Cortes_de_Caja',
+  estadoResultados: 'Estado de Resultados',
+} as const;
+
+const FOOD_COST_CATEGORIAS = new Set(['insumos alimentos', 'insumos bebidas']);
+const ANTI_INVENCION_NOTA =
+  'No afirmar causas operativas sin datos de horarios, staffing, mermas, campanas, clima o ventas por producto.';
+const FOOD_COST_LIMITACION =
+  'Desechables no incluidos en food cost porque el dashboard actual calcula food cost con Insumos Alimentos e Insumos Bebidas.';
+
+type SheetObject = Record<string, string>;
+type NullableNumber = number | null;
+
+interface PeriodWindow {
+  start: Date;
+  end: Date;
+  label: string;
+}
+
+interface SourceRows {
+  ingresos: SheetObject[];
+  gastos: SheetObject[];
+  cortesCaja: SheetObject[];
+  estadoResultados: SheetObject[];
+  estadoResultadosDisponible: boolean;
+}
+
+interface CanalAgg {
+  canal: string;
+  bruto: number;
+  comision: number;
+  neto: number;
+  porcentaje_comision: NullableNumber;
+}
+
+interface ComparativoPayload {
+  periodo_anterior: string;
+  ingresos_brutos: number;
+  comisiones: number;
+  ingresos_netos: number;
+  gastos_totales: number;
+  food_cost_pct: NullableNumber;
+  labor_pct: NullableNumber;
+  costo_primo_pct: NullableNumber;
+  comensales: number;
+  ticket_promedio: NullableNumber;
+}
+
+interface AggregatePayload extends ComparativoPayload {
+  ingresos_por_canal: CanalAgg[];
+  gastos_por_categoria: Record<string, number>;
+  gastos_por_grupo_pl: Record<string, number>;
+  food_cost_monto: number;
+  labor_monto: number;
+}
+
+export interface FinancialAIPayload {
+  periodo: {
+    id: string;
+    tipo: 'monthly' | 'ytd';
+    anio: number;
+    mes: number | null;
+    rango: {
+      inicio: string;
+      fin: string;
+      etiqueta: string;
+    };
+  };
+  targets: typeof FINANCIAL_AI_TARGETS;
+  agregados: AggregatePayload & {
+    comparativo_vs_mes_anterior: ComparativoPayload | null;
+  };
+  disponibilidad_datos: Record<string, boolean>;
+  datos_no_disponibles: string[];
+  limitaciones: string[];
+  ingenieria_menu_disponible: false;
+  causa_operativa_confirmada_disponible: false;
+  nota: string;
+}
+
+function repairMojibake(value: string): string {
+  return value
+    .replace(/Ã¡/g, 'á')
+    .replace(/Ã©/g, 'é')
+    .replace(/Ã­/g, 'í')
+    .replace(/Ã³/g, 'ó')
+    .replace(/Ãº/g, 'ú')
+    .replace(/Ã±/g, 'ñ')
+    .replace(/Ã/g, 'Á')
+    .replace(/Ã‰/g, 'É')
+    .replace(/Ã/g, 'Í')
+    .replace(/Ã“/g, 'Ó')
+    .replace(/Ãš/g, 'Ú')
+    .replace(/Ã‘/g, 'Ñ');
+}
+
+export function normalizeText(value: string | null | undefined): string {
+  return repairMojibake(String(value ?? ''))
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+export function normalizeHeader(value: string | null | undefined): string {
+  return normalizeText(value).replace(/[^a-z0-9]+/g, ' ');
+}
+
+export function parseMoney(value: string | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+
+  const raw = String(value).trim();
+  if (!raw) return 0;
+
+  const isNegative = raw.includes('(') && raw.includes(')');
+  const cleaned = raw.replace(/[$,\s()]/g, '');
+  const parsed = Number.parseFloat(cleaned);
+  if (!Number.isFinite(parsed)) return 0;
+
+  return isNegative ? -Math.abs(parsed) : parsed;
+}
+
+export function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+
+  const raw = repairMojibake(String(value).trim());
+  if (!raw) return null;
+
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return makeDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+
+  const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) return makeDate(Number(slash[3]), Number(slash[2]), Number(slash[1]));
+
+  const months: Record<string, number> = {
+    enero: 1,
+    febrero: 2,
+    marzo: 3,
+    abril: 4,
+    mayo: 5,
+    junio: 6,
+    julio: 7,
+    agosto: 8,
+    septiembre: 9,
+    octubre: 10,
+    noviembre: 11,
+    diciembre: 12,
+  };
+  const text = raw.match(/(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)\s+(?:de\s+)?,?\s*(\d{4})/i);
+  if (text) {
+    const month = months[normalizeText(text[2])];
+    if (month) return makeDate(Number(text[3]), month, Number(text[1]));
+  }
+
+  return null;
+}
+
+export function rowToObject(headers: string[], row: string[]): SheetObject {
+  return headers.reduce<SheetObject>((acc, header, index) => {
+    acc[header] = row[index] ?? '';
+    return acc;
+  }, {});
+}
+
+function makeDate(year: number, month: number, day: number): Date | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  return date;
+}
+
+function getValue(row: SheetObject, aliases: string[]): string {
+  const normalizedAliases = new Set(aliases.map(normalizeHeader));
+  const found = Object.entries(row).find(([key]) => normalizedAliases.has(normalizeHeader(key)));
+  return found?.[1] ?? '';
+}
+
+function mapRows(sheet: SheetRows): SheetObject[] {
+  return sheet.rows.map((row) => rowToObject(sheet.headers, row));
+}
+
+function isoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function monthLabel(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function endOfMonth(year: number, month: number): Date {
+  return new Date(year, month, 0);
+}
+
+function buildPeriodWindow(period: Period): PeriodWindow {
+  if (period.type === 'MENSUAL') {
+    if (period.month === null) throw new Error('Periodo mensual sin mes');
+    if (!isMonthClosed(period.year, period.month)) {
+      throw new InsufficientFinancialDataError(
+        `El periodo mensual ${period.id} aun no esta cerrado`,
+      );
+    }
+
+    return {
+      start: new Date(period.year, period.month - 1, 1),
+      end: endOfMonth(period.year, period.month),
+      label: monthLabel(period.year, period.month),
+    };
+  }
+
+  const lastClosed = lastClosedMonth();
+  const endMonth =
+    period.year < lastClosed.year ? 12 : period.year === lastClosed.year ? lastClosed.month : 0;
+  if (endMonth === 0) {
+    throw new InsufficientFinancialDataError(
+      `No hay meses cerrados disponibles para ${period.id}`,
+    );
+  }
+
+  return {
+    start: new Date(period.year, 0, 1),
+    end: endOfMonth(period.year, endMonth),
+    label: `YTD-${period.year}`,
+  };
+}
+
+function previousMonthWindow(period: Period): PeriodWindow | null {
+  if (period.type !== 'MENSUAL' || period.month === null) return null;
+
+  const previousMonth = period.month === 1 ? 12 : period.month - 1;
+  const previousYear = period.month === 1 ? period.year - 1 : period.year;
+
+  return {
+    start: new Date(previousYear, previousMonth - 1, 1),
+    end: endOfMonth(previousYear, previousMonth),
+    label: monthLabel(previousYear, previousMonth),
+  };
+}
+
+function dateInWindow(date: Date, window: PeriodWindow): boolean {
+  return date >= window.start && date <= window.end;
+}
+
+async function readOptionalSheet(sheetName: string): Promise<{
+  rows: SheetObject[];
+  available: boolean;
+}> {
+  try {
+    const sheet = await readSheetRows(sheetName);
+    return { rows: mapRows(sheet), available: sheet.headers.length > 0 };
+  } catch {
+    return { rows: [], available: false };
+  }
+}
+
+async function readSourceRows(): Promise<SourceRows> {
+  const [ingresosSheet, gastosSheet, cortesSheet, estadoResultados] = await Promise.all([
+    readSheetRows(SHEETS.ingresos),
+    readSheetRows(SHEETS.gastos),
+    readSheetRows(SHEETS.cortesCaja),
+    readOptionalSheet(SHEETS.estadoResultados),
+  ]);
+
+  return {
+    ingresos: mapRows(ingresosSheet),
+    gastos: mapRows(gastosSheet),
+    cortesCaja: mapRows(cortesSheet),
+    estadoResultados: estadoResultados.rows,
+    estadoResultadosDisponible: estadoResultados.available,
+  };
+}
+
+function sumRecord(target: Record<string, number>, key: string, amount: number): void {
+  const normalizedKey = repairMojibake(key).trim() || 'Sin categoria';
+  target[normalizedKey] = (target[normalizedKey] ?? 0) + amount;
+}
+
+function pct(part: number, total: number): NullableNumber {
+  if (total === 0) return null;
+  return Math.round((part / total) * 10000) / 100;
+}
+
+function aggregateWindow(
+  sources: SourceRows,
+  window: PeriodWindow,
+  datosNoDisponibles: Set<string>,
+  limitaciones: Set<string>,
+): AggregatePayload {
+  let validIngresoDates = 0;
+  let ingresos_brutos = 0;
+  let comisiones = 0;
+  let ingresos_netos = 0;
+  const canales: Record<string, CanalAgg> = {};
+
+  for (const row of sources.ingresos) {
+    const date = parseDate(getValue(row, ['Fecha']));
+    if (!date) continue;
+    validIngresoDates += 1;
+    if (!dateInWindow(date, window)) continue;
+
+    const canal = getValue(row, ['Fuente / Cliente']) || 'Otros';
+    const bruto = parseMoney(getValue(row, ['Monto Bruto (+)']));
+    const comision = parseMoney(
+      getValue(row, [
+        'Comision / Retencion (-)',
+        'Comisión / Retención (-)',
+        'ComisiÃ³n / RetenciÃ³n (-)',
+      ]),
+    );
+    const neto = parseMoney(
+      getValue(row, ['Monto Neto (Calculo)', 'Monto Neto (Cálculo)', 'Monto Neto (CÃ¡lculo)']),
+    );
+
+    ingresos_brutos += bruto;
+    comisiones += Math.abs(comision);
+    ingresos_netos += neto;
+
+    if (!canales[canal]) {
+      canales[canal] = {
+        canal,
+        bruto: 0,
+        comision: 0,
+        neto: 0,
+        porcentaje_comision: null,
+      };
+    }
+    canales[canal].bruto += bruto;
+    canales[canal].comision += Math.abs(comision);
+    canales[canal].neto += neto;
+  }
+
+  if (validIngresoDates === 0) {
+    throw new InsufficientFinancialDataError('No hay fechas validas en Ingresos_BD');
+  }
+  if (ingresos_brutos === 0 && ingresos_netos === 0) {
+    throw new InsufficientFinancialDataError(`No hay ingresos para el periodo ${window.label}`);
+  }
+
+  let gastos_totales = 0;
+  let food_cost_monto = 0;
+  let labor_monto = 0;
+  const gastos_por_categoria: Record<string, number> = {};
+  const gastos_por_grupo_pl: Record<string, number> = {};
+
+  if (sources.gastos.length === 0) {
+    datosNoDisponibles.add('Gastos_BD');
+    limitaciones.add('No hay gastos disponibles para el periodo.');
+  }
+
+  for (const row of sources.gastos) {
+    const date = parseDate(getValue(row, ['Fecha']));
+    if (!date || !dateInWindow(date, window)) continue;
+
+    const categoria = getValue(row, ['Categoria', 'Categoría', 'CategorÃ­a']);
+    const grupoPl = getValue(row, ['Grupo P&L']);
+    const grupoNorm = normalizeText(grupoPl);
+    const categoriaNorm = normalizeText(categoria);
+    const total = -parseMoney(getValue(row, ['Total']));
+
+    sumRecord(gastos_por_categoria, categoria, Math.abs(total));
+    sumRecord(gastos_por_grupo_pl, grupoPl, Math.abs(total));
+
+    if (grupoNorm !== 'costo de venta' && grupoNorm !== 'gastos operativos') continue;
+
+    gastos_totales += total;
+    if (FOOD_COST_CATEGORIAS.has(categoriaNorm)) food_cost_monto += total;
+    if (categoriaNorm === 'nomina') labor_monto += total;
+  }
+
+  let comensales = 0;
+  if (sources.cortesCaja.length === 0) {
+    datosNoDisponibles.add('Cortes_de_Caja');
+    limitaciones.add('No hay cortes de caja disponibles para calcular comensales reales.');
+  }
+
+  for (const row of sources.cortesCaja) {
+    const date = parseDate(getValue(row, ['Fecha']));
+    if (!date || !dateInWindow(date, window)) continue;
+    const parsed = Number.parseInt(getValue(row, ['No. de Comensales']), 10);
+    if (Number.isFinite(parsed)) comensales += parsed;
+  }
+
+  if (comensales === 0) {
+    datosNoDisponibles.add('ticket_promedio');
+    limitaciones.add('Ticket promedio no disponible porque no hay comensales reales en el periodo.');
+  }
+
+  const ingresos_por_canal = Object.values(canales)
+    .map((canal) => ({
+      ...canal,
+      porcentaje_comision: pct(canal.comision, canal.bruto),
+    }))
+    .sort((a, b) => b.bruto - a.bruto);
+
+  const food_cost_pct = pct(food_cost_monto, ingresos_netos);
+  const labor_pct = pct(labor_monto, ingresos_netos);
+
+  return {
+    periodo_anterior: window.label,
+    ingresos_brutos,
+    comisiones,
+    ingresos_netos,
+    ingresos_por_canal,
+    gastos_totales,
+    gastos_por_categoria,
+    gastos_por_grupo_pl,
+    food_cost_monto,
+    food_cost_pct,
+    labor_monto,
+    labor_pct,
+    costo_primo_pct:
+      food_cost_pct === null && labor_pct === null
+        ? null
+        : (food_cost_pct ?? 0) + (labor_pct ?? 0),
+    comensales,
+    ticket_promedio: comensales > 0 ? Math.round((ingresos_netos / comensales) * 100) / 100 : null,
+  };
+}
+
+function tryBuildComparativo(sources: SourceRows, window: PeriodWindow | null): ComparativoPayload | null {
+  if (window === null) return null;
+
+  try {
+    return aggregateWindow(sources, window, new Set<string>(), new Set<string>());
+  } catch (error) {
+    if (error instanceof InsufficientFinancialDataError) return null;
+    throw error;
+  }
+}
+
+export async function buildFinancialAIPayload(periodId: string): Promise<FinancialAIPayload> {
+  const parsed = parsePeriodId(periodId);
+  if (!parsed.ok) {
+    throw new InsufficientFinancialDataError(`Periodo invalido: ${parsed.error}`);
+  }
+
+  const period = parsed.period;
+  const window = buildPeriodWindow(period);
+  const sources = await readSourceRows();
+  const datosNoDisponibles = new Set<string>();
+  const limitaciones = new Set<string>([FOOD_COST_LIMITACION]);
+
+  if (!sources.estadoResultadosDisponible || sources.estadoResultados.length === 0) {
+    datosNoDisponibles.add(SHEETS.estadoResultados);
+    limitaciones.add('Estado de Resultados no disponible o sin estructura confiable.');
+  }
+
+  datosNoDisponibles.add('ventas_por_producto');
+  datosNoDisponibles.add('horarios');
+  datosNoDisponibles.add('staffing');
+  datosNoDisponibles.add('mermas');
+  datosNoDisponibles.add('campanas');
+  datosNoDisponibles.add('clima');
+
+  const aggregate = aggregateWindow(sources, window, datosNoDisponibles, limitaciones);
+  const comparativo = tryBuildComparativo(sources, previousMonthWindow(period));
+
+  return {
+    periodo: {
+      id: period.id,
+      tipo: period.type === 'MENSUAL' ? 'monthly' : 'ytd',
+      anio: period.year,
+      mes: period.month,
+      rango: {
+        inicio: isoDate(window.start),
+        fin: isoDate(window.end),
+        etiqueta: window.label,
+      },
+    },
+    targets: FINANCIAL_AI_TARGETS,
+    agregados: {
+      ...aggregate,
+      comparativo_vs_mes_anterior: comparativo,
+    },
+    disponibilidad_datos: {
+      ingresos_bd: sources.ingresos.length > 0,
+      gastos_bd: sources.gastos.length > 0,
+      cortes_de_caja: sources.cortesCaja.length > 0,
+      estado_de_resultados: sources.estadoResultadosDisponible,
+      ingenieria_menu: false,
+      causas_operativas_confirmadas: false,
+    },
+    datos_no_disponibles: Array.from(datosNoDisponibles).sort(),
+    limitaciones: Array.from(limitaciones),
+    ingenieria_menu_disponible: false,
+    causa_operativa_confirmada_disponible: false,
+    nota: ANTI_INVENCION_NOTA,
+  };
+}
