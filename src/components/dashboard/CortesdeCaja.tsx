@@ -43,6 +43,11 @@ const MXNk = (n: number) => {
   return MXN(n);
 };
 
+const DOW_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DOW_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+const getDow = (fecha: Date): string => DOW_NAMES[fecha.getDay()];
+
 const MESES_NOMBRES: Record<string, string> = {
   enero: 'Enero', febrero: 'Febrero', marzo: 'Marzo', abril: 'Abril',
   mayo: 'Mayo', junio: 'Junio', julio: 'Julio', agosto: 'Agosto',
@@ -50,6 +55,108 @@ const MESES_NOMBRES: Record<string, string> = {
 };
 
 const MESES_ORDER = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function DowAnalysis({ days }: { days: { fecha: Date; vci: number; com: number }[] }) {
+  const stats = useMemo(() => {
+    const map: Record<number, { total: number; count: number; comTotal: number }> = {};
+    days.forEach(d => {
+      const dow = d.fecha.getDay();
+      if (!map[dow]) map[dow] = { total: 0, count: 0, comTotal: 0 };
+      map[dow].total += d.vci;
+      map[dow].count += 1;
+      map[dow].comTotal += d.com;
+    });
+    return [0,1,2,3,4,5,6].map(dow => ({
+      dow,
+      name: DOW_NAMES[dow],
+      fullName: DOW_FULL[dow],
+      avg: map[dow] ? Math.round(map[dow].total / map[dow].count) : 0,
+      avgCom: map[dow] ? Math.round(map[dow].comTotal / map[dow].count) : 0,
+      count: map[dow]?.count || 0,
+    })).filter(d => d.count > 0).sort((a, b) => b.avg - a.avg);
+  }, [days]);
+
+  if (stats.length === 0) return null;
+
+  const maxAvg = stats[0].avg;
+  const best = stats[0];
+  const worst = stats[stats.length - 1];
+  const fri = stats.find(s => s.dow === 5);
+  const diff = best.avg > 0 ? Math.round((1 - worst.avg / best.avg) * 100) : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-white rounded-xl p-4 shadow-sm">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Venta promedio por día de la semana — YTD 2026</p>
+        <div className="space-y-2">
+          {stats.map((s, i) => {
+            const pct = Math.max(5, Math.round(s.avg / maxAvg * 100));
+            const color = i === 0 ? '#10b981' : i === 1 ? '#10b981' : i <= 3 ? '#3b82f6' : i <= 4 ? '#f59e0b' : '#ef4444';
+            const badge = i === 0 ? { label: 'Mejor', cls: 'bg-green-100 text-green-700' }
+              : i === stats.length - 1 ? { label: 'Peor', cls: 'bg-red-100 text-red-700' }
+              : i <= 1 ? { label: 'Top', cls: 'bg-green-100 text-green-700' }
+              : i >= stats.length - 2 ? { label: 'Bajo', cls: 'bg-yellow-100 text-yellow-700' }
+              : null;
+            return (
+              <div key={s.dow} className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-600 w-8 shrink-0">{s.name}</span>
+                <div className="flex-1 h-5 bg-gray-100 rounded overflow-hidden">
+                  <div style={{ width: `${pct}%`, background: color }} className="h-full rounded flex items-center pl-2">
+                    <span className="text-[10px] font-bold text-white whitespace-nowrap">{MXN(s.avg)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 w-28 justify-end shrink-0">
+                  <span className="text-xs text-gray-400">~{s.avgCom} com.</span>
+                  {badge && <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl p-4 shadow-sm">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Insights</p>
+        <div className="space-y-0 divide-y divide-gray-100">
+          <div className="flex gap-3 py-2.5">
+            <div className="w-7 h-7 rounded-full bg-green-50 flex items-center justify-center shrink-0 mt-0.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              <span className="font-semibold text-gray-800">{best.fullName}</span> es tu mejor día con {MXN(best.avg)} de venta promedio y ~{best.avgCom} comensales.
+            </p>
+          </div>
+          <div className="flex gap-3 py-2.5">
+            <div className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center shrink-0 mt-0.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              <span className="font-semibold text-gray-800">{worst.fullName}</span> es el día más bajo — vende {diff}% menos que {best.fullName}. Considera una promoción o reducir costos ese día.
+            </p>
+          </div>
+          {fri && fri.dow !== best.dow && (
+            <div className="flex gap-3 py-2.5">
+              <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                <span className="font-semibold text-gray-800">Viernes</span> promedia {MXN(fri.avg)} — a solo {MXN(best.avg - fri.avg)} del mejor día. Una promoción de "Viernes Thai" podría cerrar esa brecha.
+              </p>
+            </div>
+          )}
+          <div className="flex gap-3 py-2.5">
+            <div className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0 mt-0.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Estos promedios se actualizan automáticamente conforme agregas datos. Si un día mejora consistentemente, el ranking cambia solo.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
   const [mesKey, setMesKey] = useState<string>('');
@@ -325,7 +432,10 @@ const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
               const color = r.vci >= 20000 ? '#10b981' : r.vci >= 12000 ? '#3b82f6' : '#f59e0b';
               return (
                 <div key={i} className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-gray-400 w-14 text-right shrink-0 font-medium">{r.d}</span>
+                  <div className="w-[72px] text-right shrink-0">
+                    <span className="text-[9px] text-gray-400 font-medium">{getDow(r.fecha)} </span>
+                    <span className="text-[10px] text-gray-500 font-medium">{r.d}</span>
+                  </div>
                   <div className="flex-1 h-[18px] bg-gray-100 rounded-sm overflow-hidden">
                     <div style={{ width: `${pct}%`, background: color }} className="h-full rounded-sm flex items-center pl-1.5 min-w-[4px]">
                       <span className="text-[9px] font-bold text-white whitespace-nowrap">{r.com} com.</span>
@@ -338,6 +448,9 @@ const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
           </div>
         </div>
       </div>
+
+      {/* DOW ANALYSIS */}
+      <DowAnalysis days={KEYS.flatMap(k => byMonth[k]?.days || [])} />
 
       {/* VENTAS MENSUALES VERTICAL */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
