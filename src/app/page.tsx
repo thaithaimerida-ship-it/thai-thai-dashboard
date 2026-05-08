@@ -11,16 +11,18 @@ import { ComisionesPlataformas } from '@/components/dashboard/ComisionesPlatafor
 import { ProyeccionPECard } from '@/components/dashboard/ProyeccionPE';
 import { AnalisisRangoFechas } from '@/components/dashboard/AnalisisRangoFechas';
 import { AdsPerformance } from '@/components/dashboard/AdsPerformance';
+import { FinancialAIAnalysisTab } from '@/components/financial-ai/FinancialAIAnalysisTab';
 import { CONSTANTES_NEGOCIO, chartColors } from '@/data/realData';
 import { useGoogleSheets, procesarDatosDashboard, parseMoney, parseFecha, getMesAnio } from '@/hooks/useGoogleSheets';
 import { 
   Activity, DollarSign, BarChart3, Calendar, RefreshCw, Download,
   Lightbulb, AlertTriangle, CheckCircle, ChevronDown, Target, Info,
-  CreditCard, Calculator, Filter, Settings, ExternalLink, Loader2, TrendingUp
+  CreditCard, Calculator, Filter, Settings, ExternalLink, Loader2, TrendingUp,
+  BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type TabId = 'dashboard' | 'comisiones' | 'proyeccion' | 'analisis' | 'automatizacion' | 'ads';
+type TabId = 'dashboard' | 'comisiones' | 'proyeccion' | 'analisis' | 'automatizacion' | 'ads' | 'financial-ai';
 
 export default function Dashboard() {
   const { ingresos, gastos, cortesCaja, loading, error, lastUpdate, refetch, dataStatus } = useGoogleSheets();
@@ -95,6 +97,7 @@ export default function Dashboard() {
     { id: 'analisis' as const, label: 'Análisis Fechas', icon: Filter },
     { id: 'automatizacion' as const, label: 'Automatizar', icon: Settings },
     { id: 'ads' as const, label: 'Google Ads', icon: Target },
+    { id: 'financial-ai' as const, label: 'Análisis Financiero IA', icon: BrainCircuit },
   ];
 
   // Loading state
@@ -166,6 +169,27 @@ export default function Dashboard() {
   const datosActuales = indiceMes === 'ytd' 
     ? datosYTD! 
     : ventasMensuales[indiceMes as number];
+
+  const isFinancialAIYtdSelected = indiceMes === 'ytd';
+  const selectedFinancialAIMonthLabel = datosActuales.mesCompleto || 'Periodo seleccionado';
+  const isFinancialAIMonthClosed = (() => {
+    if (isFinancialAIYtdSelected) return false;
+    const match = selectedFinancialAIMonthLabel.match(/^([A-Za-zÃ¡Ã©Ã­Ã³ÃºÃ±]+)\s+(\d{4})$/);
+    if (!match) return false;
+
+    const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const monthIndex = months.indexOf(match[1].toLowerCase());
+    const year = Number(match[2]);
+    if (monthIndex < 0 || !Number.isInteger(year)) return false;
+
+    const now = new Date();
+    const selectedMonth = monthIndex + 1;
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    return year < currentYear || (year === currentYear && selectedMonth < currentMonth);
+  })();
 
   const opcionesMeses = [
     { valor: 'ytd', etiqueta: '📊 Acumulado YTD' },
@@ -574,6 +598,14 @@ export default function Dashboard() {
 
         {tabActivo === 'ads' && (
           <AdsPerformance />
+        )}
+
+        {tabActivo === 'financial-ai' && (
+          <FinancialAIAnalysisTab
+            selectedMonthLabel={selectedFinancialAIMonthLabel}
+            isYtdSelected={isFinancialAIYtdSelected}
+            isClosedMonth={isFinancialAIMonthClosed}
+          />
         )}
 
         {tabActivo === 'automatizacion' && (
