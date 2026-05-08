@@ -4,6 +4,8 @@ import { BrainCircuit, CalendarCheck, FileLock2, Info, Lock, Sparkles } from 'lu
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { FinancialAIReportView } from './FinancialAIReportView';
+import { mockFinancialAIReport } from './mockFinancialAIReport';
 
 interface FinancialAIAnalysisTabProps {
   selectedMonthLabel: string;
@@ -18,6 +20,9 @@ const rules = [
   { label: 'Sin YTD en V1', icon: Info },
 ] as const;
 
+// Mock visual desactivado por defecto. No activar en producción.
+const showMockReport = false;
+
 export function FinancialAIAnalysisTab({
   selectedMonthLabel,
   isYtdSelected,
@@ -27,6 +32,8 @@ export function FinancialAIAnalysisTab({
     ? 'Financial AI V1 no usa YTD. Selecciona un mes cerrado.'
     : 'Selecciona un mes cerrado para generar el análisis.';
   const canShowEmptyState = !isYtdSelected && isClosedMonth;
+  const shouldShowMockReport = showMockReport;
+  const shouldShowDemoPeriodNote = shouldShowMockReport && !canShowEmptyState;
 
   return (
     <div className="space-y-4">
@@ -53,7 +60,21 @@ export function FinancialAIAnalysisTab({
         </div>
       </div>
 
-      <Card className="overflow-hidden border-slate-200 bg-white">
+      {shouldShowMockReport ? (
+        <div className="space-y-4">
+          {shouldShowDemoPeriodNote && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              El periodo seleccionado no es vÃ¡lido para generaciÃ³n real, pero se muestra
+              una vista demo para revisiÃ³n visual. No conectado a datos reales.
+            </div>
+          )}
+          <FinancialAIReportView
+            report={mockFinancialAIReport}
+            selectedMonthLabel={selectedMonthLabel}
+          />
+        </div>
+      ) : (
+        <Card className="overflow-hidden border-slate-200 bg-white">
         <CardHeader className="border-b border-slate-100 bg-slate-50/80">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -109,7 +130,8 @@ export function FinancialAIAnalysisTab({
             ))}
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
