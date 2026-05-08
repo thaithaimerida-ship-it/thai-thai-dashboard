@@ -4,7 +4,6 @@ import {
   appendClosedMonthlyReport,
   findReportByPeriod,
   type NewReportesIARow,
-  upsertYTDReport,
 } from '@/lib/google-sheets-server';
 import {
   AnthropicRequestError,
@@ -81,25 +80,19 @@ function existingReportResponse(period: string, locked: boolean, reportJson: str
   });
 }
 
-function monthString(month: number | null): string {
-  return month === null ? '' : String(month).padStart(2, '0');
-}
-
 function toReportesIARow(
   periodId: string,
-  type: 'MENSUAL' | 'YTD',
   year: number,
-  month: number | null,
-  locked: boolean,
+  month: number,
   generated: GeneratedFinancialAIReport,
 ): NewReportesIARow {
   return {
     ID_Periodo: periodId,
-    Tipo_Periodo: type,
+    Tipo_Periodo: 'MENSUAL',
     Anio: String(year),
-    Mes: monthString(month),
+    Mes: String(month).padStart(2, '0'),
     Estado: 'OK',
-    Locked: locked ? 'TRUE' : 'FALSE',
+    Locked: 'TRUE',
     Fecha_Generacion: new Date().toISOString(),
     Fecha_Corte_Datos: generated.metadata.fechaCorteDatos,
     Data_Hash: generated.metadata.dataHash,
@@ -122,35 +115,23 @@ export async function POST(request: Request) {
   const { period } = parsed;
 
   try {
-    if (period.type === 'MENSUAL') {
-      if (period.month === null || !isMonthClosed(period.year, period.month)) {
-        return jsonError('No se puede generar reporte mensual de un mes abierto o futuro', 400);
-      }
+    if (!isMonthClosed(period.year, period.month)) {
+      return jsonError('No se puede generar reporte mensual de un mes abierto o futuro', 400);
+    }
 
-      const existing = await findReportByPeriod(periodId);
-      if (existing) {
-        return existingReportResponse(periodId, true, existing.Report_JSON);
-      }
-
-      const generated = await generateFinancialAIReport(periodId);
-      await appendClosedMonthlyReport(
-        toReportesIARow(periodId, 'MENSUAL', period.year, period.month, true, generated),
-      );
-
-      return NextResponse.json({
-        generated: true,
-        locked: true,
-        period: periodId,
-        report_json: generated.report,
-      });
+    const existing = await findReportByPeriod(periodId);
+    if (existing) {
+      return existingReportResponse(periodId, true, existing.Report_JSON);
     }
 
     const generated = await generateFinancialAIReport(periodId);
-    await upsertYTDReport(toReportesIARow(periodId, 'YTD', period.year, null, false, generated));
+    await appendClosedMonthlyReport(
+      toReportesIARow(periodId, period.year, period.month, generated),
+    );
 
     return NextResponse.json({
       generated: true,
-      locked: false,
+      locked: true,
       period: periodId,
       report_json: generated.report,
     });
