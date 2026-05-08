@@ -16,6 +16,7 @@ import {
   generateFinancialAIReport,
   type GeneratedFinancialAIReport,
 } from '@/lib/financial-ai/financial-analysis-service';
+import { authorizeFinancialAIRequest } from '@/lib/financial-ai/api-auth';
 import { isMonthClosed, parsePeriodId } from '@/lib/financial-ai/period';
 
 export const runtime = 'nodejs';
@@ -104,6 +105,9 @@ function toReportesIARow(
 }
 
 export async function POST(request: Request) {
+  const unauthorized = authorizeFinancialAIRequest(request);
+  if (unauthorized) return unauthorized;
+
   const body = await readBody(request);
   const periodId = typeof body?.periodId === 'string' ? body.periodId : '';
   const parsed = parsePeriodId(periodId);

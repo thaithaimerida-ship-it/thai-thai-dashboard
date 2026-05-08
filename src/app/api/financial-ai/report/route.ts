@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { findExistingReportByPeriod } from '@/lib/google-sheets-server';
+import { authorizeFinancialAIRequest } from '@/lib/financial-ai/api-auth';
 import { parsePeriodId } from '@/lib/financial-ai/period';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,9 @@ function parseReportJSON(value: string): { reportJson: unknown; parseError: bool
 }
 
 export async function GET(request: Request) {
+  const unauthorized = authorizeFinancialAIRequest(request);
+  if (unauthorized) return unauthorized;
+
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') ?? '';
   const parsed = parsePeriodId(period);
