@@ -35,12 +35,8 @@ function formatPercent(value: number) {
 }
 
 function statusTone(status: SemaforoEstado) {
-  if (status === 'verde') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  }
-  if (status === 'amarillo') {
-    return 'border-amber-200 bg-amber-50 text-amber-700';
-  }
+  if (status === 'verde') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (status === 'amarillo') return 'border-amber-200 bg-amber-50 text-amber-700';
   return 'border-rose-200 bg-rose-50 text-rose-700';
 }
 
@@ -58,8 +54,8 @@ function SectionTitle({
   title: string;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="rounded-md bg-slate-100 p-1.5 text-slate-700">
+    <div className="flex items-center gap-3">
+      <div className="rounded-md bg-slate-100 p-2 text-slate-700">
         <Icon className="h-4 w-4" />
       </div>
       <h3 className="text-base font-semibold text-slate-900">{title}</h3>
@@ -72,15 +68,26 @@ export function FinancialAIReportView({
   selectedMonthLabel,
 }: FinancialAIReportViewProps) {
   return (
-    <div className="space-y-4">
-      <Card className="border-slate-200 bg-white">
-        <CardHeader className="space-y-4 border-b border-slate-100 bg-slate-50/80">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
+    <div className="space-y-6">
+      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span className="inline-flex w-fit items-center rounded-full border border-amber-400 bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-900">
+            Vista demo · datos de ejemplo
+          </span>
+          <span className="text-xs font-medium text-amber-800">
+            Selector actual: {selectedMonthLabel}
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-amber-900">
+          Este reporte es una simulación visual. No está conectado a datos reales.
+        </p>
+      </div>
+
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <CardHeader className="space-y-6 border-b border-slate-100 bg-slate-50/80 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                  Vista demo · datos de ejemplo
-                </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
                   <Lock className="h-3.5 w-3.5" />
                   Reporte bloqueado
@@ -94,10 +101,13 @@ export function FinancialAIReportView({
               </div>
 
               <div>
-                <CardTitle className="text-xl text-slate-950">
-                  Reporte Financial AI · {selectedMonthLabel}
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Mock local · no conectado a datos reales
+                </p>
+                <CardTitle className="mt-2 text-2xl text-slate-950">
+                  Reporte demo · Abril 2026
                 </CardTitle>
-                <p className="mt-2 max-w-4xl text-sm leading-relaxed text-slate-600">
+                <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-600">
                   {report.resumen_ejecutivo}
                 </p>
               </div>
@@ -114,34 +124,34 @@ export function FinancialAIReportView({
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-5 p-4 sm:p-6">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 lg:col-span-2">
+        <CardContent className="space-y-8 p-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-5 lg:col-span-2">
               <SectionTitle icon={BadgeCheck} title="Diagnóstico general" />
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              <p className="mt-4 text-sm leading-relaxed text-slate-600">
                 {report.diagnostico_general.lectura}
               </p>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-rose-100 bg-rose-50 p-3">
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-rose-100 bg-rose-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
                     Principal riesgo
                   </p>
-                  <p className="mt-1 text-sm text-rose-900">
+                  <p className="mt-2 text-sm leading-relaxed text-rose-900">
                     {report.diagnostico_general.principal_riesgo}
                   </p>
                 </div>
-                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                     Principal oportunidad
                   </p>
-                  <p className="mt-1 text-sm text-emerald-900">
+                  <p className="mt-2 text-sm leading-relaxed text-emerald-900">
                     {report.diagnostico_general.principal_oportunidad}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-950 p-4 text-white">
+            <div className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Estado del mes
               </p>
@@ -154,9 +164,9 @@ export function FinancialAIReportView({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {report.kpis_ejecutivos.map((kpi) => (
-              <div key={kpi.nombre} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div key={kpi.nombre} className="rounded-lg border border-slate-200 bg-white p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-slate-500">{kpi.nombre}</p>
@@ -171,17 +181,17 @@ export function FinancialAIReportView({
                 <p className="mt-3 text-xs text-slate-500">
                   Objetivo {kpi.objetivo} · Gap {kpi.gap}
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{kpi.lectura}</p>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">{kpi.lectura}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_1.4fr]">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_1.4fr]">
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
               <SectionTitle icon={BarChart3} title="Semáforo KPI" />
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 {report.semaforo_kpis.map((kpi) => (
-                  <div key={kpi.nombre} className="rounded-lg border border-slate-100 p-3">
+                  <div key={kpi.nombre} className="rounded-lg border border-slate-100 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-medium text-slate-800">{kpi.nombre}</p>
                       <span className={cn('rounded-full border px-2 py-1 text-xs', statusTone(kpi.estado))}>
@@ -191,18 +201,18 @@ export function FinancialAIReportView({
                     <p className="mt-1 text-sm text-slate-500">
                       {kpi.valor_real} vs {kpi.objetivo}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{kpi.lectura}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-600">{kpi.lectura}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
               <SectionTitle icon={TrendingUp} title="Análisis de canales" />
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              <p className="mt-4 text-sm leading-relaxed text-slate-600">
                 {report.analisis_canales.resumen}
               </p>
-              <div className="mt-4 overflow-x-auto">
+              <div className="mt-5 overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
@@ -235,17 +245,17 @@ export function FinancialAIReportView({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
               <SectionTitle icon={CheckCircle2} title="Hallazgos confirmados" />
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 {report.hallazgos_confirmados.map((hallazgo) => (
-                  <div key={hallazgo.titulo} className="rounded-lg bg-white/80 p-3">
+                  <div key={hallazgo.titulo} className="rounded-lg bg-white/80 p-4">
                     <p className="font-medium text-emerald-950">{hallazgo.titulo}</p>
-                    <p className="mt-1 text-xs font-semibold text-emerald-700">
+                    <p className="mt-2 text-xs font-semibold text-emerald-700">
                       {hallazgo.dato_base}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-emerald-900">
+                    <p className="mt-3 text-sm leading-relaxed text-emerald-900">
                       {hallazgo.lectura}
                     </p>
                   </div>
@@ -253,16 +263,16 @@ export function FinancialAIReportView({
               </div>
             </div>
 
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
               <SectionTitle icon={Lightbulb} title="Hipótesis operativas" />
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 {report.hipotesis_operativas.map((hipotesis) => (
-                  <div key={hipotesis.hipotesis} className="rounded-lg bg-white/80 p-3">
+                  <div key={hipotesis.hipotesis} className="rounded-lg bg-white/80 p-4">
                     <p className="font-medium text-amber-950">{hipotesis.hipotesis}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-amber-900">
+                    <p className="mt-3 text-sm leading-relaxed text-amber-900">
                       {hipotesis.por_que_importa}
                     </p>
-                    <p className="mt-2 text-xs text-amber-700">
+                    <p className="mt-3 text-xs text-amber-700">
                       Validar con: {hipotesis.dato_necesario_para_confirmar}
                     </p>
                   </div>
@@ -270,11 +280,11 @@ export function FinancialAIReportView({
               </div>
             </div>
 
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
               <SectionTitle icon={TrendingUp} title="Acciones sugeridas" />
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 {report.acciones_sugeridas.map((accion) => (
-                  <div key={accion.accion} className="rounded-lg bg-white/80 p-3">
+                  <div key={accion.accion} className="rounded-lg bg-white/80 p-4">
                     <span
                       className={cn(
                         'rounded-full border px-2 py-1 text-xs font-medium',
@@ -284,10 +294,10 @@ export function FinancialAIReportView({
                       Prioridad {accion.prioridad}
                     </span>
                     <p className="mt-3 font-medium text-blue-950">{accion.accion}</p>
-                    <p className="mt-2 text-sm text-blue-900">
+                    <p className="mt-3 text-sm text-blue-900">
                       {accion.responsable_sugerido} · {accion.plazo_sugerido}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-blue-900">
+                    <p className="mt-3 text-sm leading-relaxed text-blue-900">
                       {accion.impacto_esperado}
                     </p>
                   </div>
@@ -297,14 +307,17 @@ export function FinancialAIReportView({
           </div>
 
           {!report.ingenieria_menu.disponible && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
               <SectionTitle icon={MinusCircle} title="Ingeniería de menú no disponible" />
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              <p className="mt-4 text-sm leading-relaxed text-slate-600">
                 {report.ingenieria_menu.lectura}
               </p>
-              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                 {report.ingenieria_menu.limitaciones.map((limitacion) => (
-                  <div key={limitacion} className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                  <div
+                    key={limitacion}
+                    className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600"
+                  >
                     {limitacion}
                   </div>
                 ))}
@@ -313,16 +326,16 @@ export function FinancialAIReportView({
           )}
 
           {report.alertas_riesgo.length > 0 && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-5">
               <SectionTitle icon={AlertTriangle} title="Alertas de riesgo" />
-              <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {report.alertas_riesgo.map((alerta) => (
-                  <div key={alerta.alerta} className="rounded-lg bg-white/80 p-3">
+                  <div key={alerta.alerta} className="rounded-lg bg-white/80 p-4">
                     <p className="font-medium text-rose-950">{alerta.alerta}</p>
-                    <p className="mt-1 text-xs font-semibold text-rose-700">
+                    <p className="mt-2 text-xs font-semibold text-rose-700">
                       Nivel {alerta.nivel} · {alerta.dato_base}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-rose-900">
+                    <p className="mt-3 text-sm leading-relaxed text-rose-900">
                       {alerta.accion_recomendada}
                     </p>
                   </div>
@@ -331,20 +344,20 @@ export function FinancialAIReportView({
             </div>
           )}
 
-          <div className="rounded-lg border border-slate-900 bg-slate-950 p-5 text-white">
+          <div className="rounded-lg border border-slate-900 bg-slate-950 p-6 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
               Recomendación principal
             </p>
             <h3 className="mt-2 text-xl font-semibold">
               {report.recomendacion_principal.titulo}
             </h3>
-            <p className="mt-3 max-w-4xl text-sm leading-relaxed text-slate-200">
+            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-200">
               {report.recomendacion_principal.recomendacion}
             </p>
             <p className="mt-4 text-sm leading-relaxed text-slate-300">
               {report.recomendacion_principal.razon}
             </p>
-            <div className="mt-4 rounded-lg border border-white/10 bg-white/10 p-3 text-sm text-white">
+            <div className="mt-5 rounded-lg border border-white/10 bg-white/10 p-4 text-sm text-white">
               {report.recomendacion_principal.decision_sugerida}
             </div>
           </div>
