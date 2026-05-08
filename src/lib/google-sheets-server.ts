@@ -1,5 +1,7 @@
 import { google, sheets_v4 } from 'googleapis';
 
+import { isMonthClosed, parsePeriodId } from './financial-ai/period';
+
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
 export const REPORTES_IA_SHEET_NAME = 'Reportes_IA';
@@ -214,11 +216,32 @@ export async function findReportByPeriod(periodId: string): Promise<ReportesIARo
 
 export async function appendClosedMonthlyReport(report: NewReportesIARow): Promise<void> {
   await ensureReportesIASheet();
+  const parsed = parsePeriodId(report.ID_Periodo);
+  if (!parsed.ok) {
+    throw new Error(`ID_Periodo mensual invalido: ${parsed.error}`);
+  }
+  if (parsed.period.type !== 'MENSUAL' || parsed.period.month === null) {
+    throw new Error('appendClosedMonthlyReport solo acepta periodos mensuales YYYY-MM');
+  }
+  if (!isMonthClosed(parsed.period.year, parsed.period.month)) {
+    throw new Error(`No se puede generar reporte mensual abierto: ${report.ID_Periodo}`);
+  }
+  const existing = await findReportByPeriod(report.ID_Periodo);
+  if (existing) {
+    throw new Error(`Ya existe un reporte mensual cerrado para ${report.ID_Periodo}`);
+  }
   await appendSheetRows(REPORTES_IA_SHEET_NAME, [reportToRow(report)]);
 }
 
 export async function upsertYTDReport(report: NewReportesIARow): Promise<void> {
   await ensureReportesIASheet();
+  const parsed = parsePeriodId(report.ID_Periodo);
+  if (!parsed.ok) {
+    throw new Error(`ID_Periodo YTD invalido: ${parsed.error}`);
+  }
+  if (parsed.period.type !== 'YTD') {
+    throw new Error('upsertYTDReport solo acepta periodos YTD-YYYY');
+  }
   const existing = await findReportByPeriod(report.ID_Periodo);
   const row = reportToRow(report);
   if (existing) {
