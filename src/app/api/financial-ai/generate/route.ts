@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import {
   appendClosedMonthlyReport,
-  findReportByPeriod,
+  findExistingReportByPeriod,
   type NewReportesIARow,
 } from '@/lib/google-sheets-server';
 import {
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       return jsonError('No se puede generar reporte mensual de un mes abierto o futuro', 400);
     }
 
-    const existing = await findReportByPeriod(periodId);
+    const existing = await findExistingReportByPeriod(periodId);
     if (existing) {
       return existingReportResponse(periodId, true, existing.Report_JSON);
     }

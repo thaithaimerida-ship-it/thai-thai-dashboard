@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const SemaforoEstadoSchema = z.enum(['verde', 'amarillo', 'rojo']);
-export const PeriodoTipoSchema = z.enum(['monthly']);
-export const EstadoReporteSchema = z.enum(['cerrado']);
+export const PeriodoTipoSchema = z.literal('monthly');
+export const EstadoReporteSchema = z.literal('cerrado');
 export const EstadoMesSchema = z.enum([
   'sano',
   'sano_con_alertas',
@@ -17,7 +17,7 @@ export const MetadataSchema = z.object({
   tipo_periodo: PeriodoTipoSchema,
   fecha_generacion: z.string().min(1),
   estado_reporte: EstadoReporteSchema,
-  locked: z.boolean(),
+  locked: z.literal(true),
 });
 
 export const DiagnosticoGeneralSchema = z.object({

@@ -203,8 +203,7 @@ function reportToRow(r: NewReportesIARow): string[] {
   ];
 }
 
-export async function findReportByPeriod(periodId: string): Promise<ReportesIARow | null> {
-  await ensureReportesIASheet();
+async function findReportByPeriodInRows(periodId: string): Promise<ReportesIARow | null> {
   const { rows } = await readSheetRows(REPORTES_IA_SHEET_NAME);
   for (let i = rows.length - 1; i >= 0; i--) {
     if (rows[i][0] === periodId) {
@@ -212,6 +211,19 @@ export async function findReportByPeriod(periodId: string): Promise<ReportesIARo
     }
   }
   return null;
+}
+
+export async function findExistingReportByPeriod(
+  periodId: string,
+): Promise<ReportesIARow | null> {
+  const existingId = await getSheetIdByName(REPORTES_IA_SHEET_NAME);
+  if (existingId === null) return null;
+  return findReportByPeriodInRows(periodId);
+}
+
+export async function findReportByPeriod(periodId: string): Promise<ReportesIARow | null> {
+  await ensureReportesIASheet();
+  return findReportByPeriodInRows(periodId);
 }
 
 export async function appendClosedMonthlyReport(report: NewReportesIARow): Promise<void> {

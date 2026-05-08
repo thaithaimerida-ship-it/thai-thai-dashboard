@@ -31,7 +31,7 @@ export async function generateFinancialAIReport(
   });
 
   return {
-    report: validateFinancialAIReport(responseText),
+    report: validateFinancialAIReport(responseText, periodId),
     metadata: {
       dataHash: computeDataHash(payload),
       fechaCorteDatos: payload.periodo.rango.fin,

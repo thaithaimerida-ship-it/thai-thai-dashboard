@@ -14,7 +14,10 @@ function parseJSON(text: string): unknown {
   }
 }
 
-export function validateFinancialAIReport(responseText: string): FinancialReport {
+export function validateFinancialAIReport(
+  responseText: string,
+  expectedPeriodId?: string,
+): FinancialReport {
   const trimmed = responseText.trim();
   if (!trimmed) {
     throw new InvalidAIResponseError('La respuesta de IA esta vacia');
@@ -27,6 +30,12 @@ export function validateFinancialAIReport(responseText: string): FinancialReport
     throw new InvalidAIResponseError(
       'La respuesta de IA no cumple el schema financiero aprobado',
       result.error.flatten(),
+    );
+  }
+
+  if (expectedPeriodId && result.data.metadata.periodo !== expectedPeriodId) {
+    throw new InvalidAIResponseError(
+      `La respuesta de IA no corresponde al periodo solicitado ${expectedPeriodId}`,
     );
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { findReportByPeriod } from '@/lib/google-sheets-server';
+import { findExistingReportByPeriod } from '@/lib/google-sheets-server';
 import { parsePeriodId } from '@/lib/financial-ai/period';
 
 export const runtime = 'nodejs';
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const existing = await findReportByPeriod(period);
+  const existing = await findExistingReportByPeriod(period);
   if (!existing) {
     return NextResponse.json({
       exists: false,
