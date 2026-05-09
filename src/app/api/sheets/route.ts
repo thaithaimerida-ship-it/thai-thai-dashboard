@@ -1,7 +1,26 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 
+import {
+  DASHBOARD_AUTH_COOKIE,
+  verifyDashboardSessionToken,
+} from '@/lib/dashboard-auth';
+
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+
+function getCookieValue(cookieHeader: string | null, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+
+  const cookies = cookieHeader.split(';');
+  for (const cookie of cookies) {
+    const [rawName, ...rawValue] = cookie.trim().split('=');
+    if (rawName === name) {
+      return rawValue.join('=');
+    }
+  }
+
+  return undefined;
+}
 
 async function getGoogleSheetsClient() {
   const auth = new google.auth.GoogleAuth({
@@ -17,6 +36,12 @@ async function getGoogleSheetsClient() {
 }
 
 export async function GET(request: Request) {
+  const token = getCookieValue(request.headers.get('cookie'), DASHBOARD_AUTH_COOKIE);
+  const isAuthorized = await verifyDashboardSessionToken(token);
+  if (!isAuthorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const requiredEnv = {
       GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID,
