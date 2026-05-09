@@ -60,6 +60,7 @@ interface AggregatePayload extends ComparativoPayload {
   ingresos_por_canal: CanalAgg[];
   venta_con_impuesto: number;
   impuesto_total: number;
+  venta_neta_caja: number;
   ventas_por_metodo_pago: Record<string, number>;
   gastos_por_categoria: Record<string, number>;
   gastos_por_grupo_pl: Record<string, number>;
@@ -324,14 +325,15 @@ export function aggregateWindow(
   let ingresos_brutos = 0;
   let venta_con_impuesto = 0;
   let impuesto_total = 0;
+  let venta_neta_caja = 0;
   let ingresos_netos = 0;
   let comensales = 0;
   const ventas_por_metodo_pago: Record<string, number> = {};
 
   if (sources.cortesCaja.length === 0) {
     datosNoDisponibles.add('Cortes_de_Caja');
-    throw new InsufficientFinancialDataError(
-      'No hay cortes de caja disponibles para calcular ingresos reales.',
+    limitaciones.add(
+      'Cortes_de_Caja no disponible; caja operativa, comensales y metodos de pago se tratan como no disponibles.',
     );
   }
 
@@ -347,9 +349,8 @@ export function aggregateWindow(
     const impuesto = parseMoney(getValue(row, ['Impuesto Total']));
     const parsedComensales = Number.parseInt(getValue(row, ['No. de Comensales']), 10);
 
-    ingresos_netos += ventaNeta;
     venta_con_impuesto += ventaConImpuesto;
-    ingresos_brutos += ventaConImpuesto;
+    venta_neta_caja += ventaNeta;
     impuesto_total += impuesto;
     if (Number.isFinite(parsedComensales)) comensales += parsedComensales;
 
@@ -367,12 +368,14 @@ export function aggregateWindow(
     }
   }
 
-  if (validCorteDates === 0) {
-    throw new InsufficientFinancialDataError('No hay fechas validas en Cortes_de_Caja');
+  if (sources.cortesCaja.length > 0 && validCorteDates === 0) {
+    datosNoDisponibles.add('caja_operativa');
+    limitaciones.add('Cortes_de_Caja no tiene fechas validas; caja operativa no disponible.');
   }
-  if (cortesInWindow === 0 || (ingresos_brutos === 0 && ingresos_netos === 0)) {
-    throw new InsufficientFinancialDataError(
-      `No hay ventas validas en Cortes_de_Caja para el periodo ${window.label}`,
+  if (sources.cortesCaja.length > 0 && cortesInWindow === 0) {
+    datosNoDisponibles.add('caja_operativa');
+    limitaciones.add(
+      `Cortes_de_Caja no tiene registros para ${window.label}; caja operativa no disponible.`,
     );
   }
 
@@ -408,6 +411,8 @@ export function aggregateWindow(
     );
 
     comisiones += Math.abs(comision);
+    ingresos_brutos += bruto;
+    ingresos_netos += neto;
     const canalAgg = ensureCanal(canales, canal);
     canalAgg.bruto += bruto;
     canalAgg.comision += Math.abs(comision);
@@ -416,13 +421,18 @@ export function aggregateWindow(
 
   if (validIngresoDates === 0) {
     datosNoDisponibles.add('Ingresos_BD');
-    limitaciones.add(
-      'Ingresos_BD no tiene fechas validas; canales comerciales y comisiones de plataformas se tratan como no disponibles.',
+    throw new InsufficientFinancialDataError(
+      'Ingresos_BD no tiene fechas validas; rentabilidad financiera no disponible.',
     );
   } else if (ingresosRowsInWindow === 0) {
-    datosNoDisponibles.add('canales_comerciales');
-    limitaciones.add(
-      `Ingresos_BD no tiene registros para ${window.label}; canales comerciales y comisiones de plataformas se tratan como no disponibles.`,
+    datosNoDisponibles.add('rentabilidad_financiera');
+    throw new InsufficientFinancialDataError(
+      `Ingresos_BD no tiene ventas financieras para ${window.label}; no se usa Cortes_de_Caja como sustituto de rentabilidad.`,
+    );
+  } else if (ingresos_brutos === 0 && ingresos_netos === 0) {
+    datosNoDisponibles.add('rentabilidad_financiera');
+    throw new InsufficientFinancialDataError(
+      `Ingresos_BD no tiene montos financieros validos para ${window.label}; no se usa Cortes_de_Caja como sustituto de rentabilidad.`,
     );
   }
 
@@ -462,17 +472,6 @@ export function aggregateWindow(
     limitaciones.add('Ticket promedio no disponible porque no hay comensales reales en el periodo.');
   }
 
-  if (Object.keys(canales).length === 0) {
-    const cajaTotal = ensureCanal(canales, 'Caja total');
-    cajaTotal.bruto = ingresos_brutos;
-    cajaTotal.comision = 0;
-    cajaTotal.neto = ingresos_netos;
-    datosNoDisponibles.add('comisiones_plataformas');
-    limitaciones.add(
-      'Analisis por canales usa Caja total porque Ingresos_BD no estuvo disponible como fuente de canales/comisiones.',
-    );
-  }
-
   const ingresos_por_canal = Object.values(canales)
     .map((canal) => ({
       ...canal,
@@ -491,6 +490,7 @@ export function aggregateWindow(
     ingresos_por_canal,
     venta_con_impuesto,
     impuesto_total,
+    venta_neta_caja,
     ventas_por_metodo_pago,
     gastos_totales,
     gastos_por_categoria,
@@ -504,7 +504,8 @@ export function aggregateWindow(
         ? null
         : (food_cost_pct ?? 0) + (labor_pct ?? 0),
     comensales,
-    ticket_promedio: comensales > 0 ? Math.round((ingresos_netos / comensales) * 100) / 100 : null,
+    ticket_promedio:
+      comensales > 0 ? Math.round((venta_con_impuesto / comensales) * 100) / 100 : null,
   };
 }
 
