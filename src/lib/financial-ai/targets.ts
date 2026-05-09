@@ -9,5 +9,5 @@ export const FINANCIAL_AI_TARGETS = {
   COMENSALES_OBJETIVO_MES: 1100,
 } as const;
 
-export const FINANCIAL_AI_MODEL = 'claude-sonnet-4-6';
+export const FINANCIAL_AI_MODEL = 'claude-sonnet-4-20250514';
 export const FINANCIAL_AI_PROMPT_VERSION = 'v1';
