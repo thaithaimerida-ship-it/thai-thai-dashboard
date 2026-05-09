@@ -23,7 +23,7 @@ type ReportLoadState =
   | { status: 'loaded'; period: string; report: FinancialReport }
   | { status: 'unauthorized' }
   | { status: 'parse-error' }
-  | { status: 'error' };
+  | { status: 'error'; message?: string; errorCode?: string; title?: string };
 
 interface UiReportResponse {
   exists: boolean;
@@ -43,6 +43,7 @@ interface GenerateUiResponse {
   report_json?: unknown;
   parse_error?: boolean;
   error?: string;
+  error_code?: string;
 }
 
 interface PeriodOption {
@@ -162,6 +163,27 @@ function isFinancialReport(value: unknown): value is FinancialReport {
   return Boolean(value && typeof value === 'object' && 'metadata' in value);
 }
 
+function isErrorPayload(value: unknown): value is { error?: unknown; error_code?: unknown } {
+  return Boolean(value && typeof value === 'object' && 'error' in value);
+}
+
+async function readErrorPayload(response: Response): Promise<{
+  message?: string;
+  errorCode?: string;
+}> {
+  try {
+    const data: unknown = await response.json();
+    if (!isErrorPayload(data)) return {};
+
+    return {
+      message: typeof data.error === 'string' ? data.error : undefined,
+      errorCode: typeof data.error_code === 'string' ? data.error_code : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 function GenerateButton({
   canGenerate,
   isGenerating,
@@ -246,7 +268,13 @@ export function FinancialAIAnalysisTab({
         }
 
         if (!response.ok) {
-          setReportState({ status: 'error' });
+          const errorPayload = await readErrorPayload(response);
+          setReportState({
+            status: 'error',
+            title: 'No se pudo cargar el reporte',
+            message: errorPayload.message,
+            errorCode: errorPayload.errorCode,
+          });
           return;
         }
 
@@ -264,7 +292,11 @@ export function FinancialAIAnalysisTab({
         setReportState({ status: 'loaded', period: periodId, report: data.report_json });
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        setReportState({ status: 'error' });
+        setReportState({
+          status: 'error',
+          title: 'No se pudo cargar el reporte',
+          message: 'No se pudo cargar el reporte Financial AI.',
+        });
       }
     }
 
@@ -299,12 +331,18 @@ export function FinancialAIAnalysisTab({
         return;
       }
 
-      const data = (await response.json()) as GenerateUiResponse;
-
       if (!response.ok) {
-        setReportState({ status: 'error' });
+        const errorPayload = await readErrorPayload(response);
+        setReportState({
+          status: 'error',
+          title: 'No se pudo generar el reporte',
+          message: errorPayload.message || 'No se pudo generar el reporte Financial AI.',
+          errorCode: errorPayload.errorCode,
+        });
         return;
       }
+
+      const data = (await response.json()) as GenerateUiResponse;
 
       if (data.parse_error || !isFinancialReport(data.report_json)) {
         setReportState({ status: 'parse-error' });
@@ -313,7 +351,11 @@ export function FinancialAIAnalysisTab({
 
       setReportState({ status: 'loaded', period: periodId, report: data.report_json });
     } catch {
-      setReportState({ status: 'error' });
+      setReportState({
+        status: 'error',
+        title: 'No se pudo generar el reporte',
+        message: 'No se pudo conectar con el servicio de generacion Financial AI.',
+      });
     }
   }
 
@@ -390,11 +432,21 @@ export function FinancialAIAnalysisTab({
               <div>
                 <CardTitle className="flex items-center gap-2 text-base text-gray-800">
                   <Sparkles className="h-4 w-4 text-blue-600" />
-                  {getStateTitle(reportState.status, canLoadSavedReport)}
+                  {getStateTitle(reportState, canLoadSavedReport)}
                 </CardTitle>
                 <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
-                  {getStateMessage(reportState.status, canLoadSavedReport, blockedMessage)}
+                  {getStateMessage(reportState, canLoadSavedReport, blockedMessage)}
                 </p>
+                {reportState.status === 'error' && reportState.message && (
+                  <div className="mt-3 max-w-2xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                    <p>{reportState.message}</p>
+                    {reportState.errorCode && (
+                      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-red-700">
+                        Codigo: {reportState.errorCode}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <GenerateButton
@@ -443,26 +495,26 @@ export function FinancialAIAnalysisTab({
   );
 }
 
-function getStateTitle(status: ReportLoadState['status'], canLoadSavedReport: boolean): string {
+function getStateTitle(state: ReportLoadState, canLoadSavedReport: boolean): string {
   if (!canLoadSavedReport) return 'Periodo no disponible para Financial AI V1';
-  if (status === 'loading') return 'Cargando reporte Financial AI';
-  if (status === 'generating') return 'Generando reporte Financial AI';
-  if (status === 'unauthorized') return 'Sesion no autorizada';
-  if (status === 'parse-error') return 'Reporte guardado no legible';
-  if (status === 'error') return 'No se pudo cargar el reporte';
+  if (state.status === 'loading') return 'Cargando reporte Financial AI';
+  if (state.status === 'generating') return 'Generando reporte Financial AI';
+  if (state.status === 'unauthorized') return 'Sesion no autorizada';
+  if (state.status === 'parse-error') return 'Reporte guardado no legible';
+  if (state.status === 'error') return state.title || 'No se pudo cargar el reporte';
   return 'Sin reporte generado para este periodo';
 }
 
 function getStateMessage(
-  status: ReportLoadState['status'],
+  status: ReportLoadState,
   canLoadSavedReport: boolean,
   blockedMessage: string,
 ): string {
   if (!canLoadSavedReport) return blockedMessage;
-  if (status === 'loading') return 'Buscando si ya existe un reporte guardado para este mes.';
-  if (status === 'generating') return 'Generando y guardando el reporte. No cierres esta ventana.';
-  if (status === 'unauthorized') return 'Sesion no autorizada. Vuelve a iniciar sesion.';
-  if (status === 'parse-error') return 'El reporte guardado no pudo leerse correctamente.';
-  if (status === 'error') return 'No se pudo cargar el reporte Financial AI.';
+  if (status.status === 'loading') return 'Buscando si ya existe un reporte guardado para este mes.';
+  if (status.status === 'generating') return 'Generando y guardando el reporte. No cierres esta ventana.';
+  if (status.status === 'unauthorized') return 'Sesion no autorizada. Vuelve a iniciar sesion.';
+  if (status.status === 'parse-error') return 'El reporte guardado no pudo leerse correctamente.';
+  if (status.status === 'error') return status.message || 'No se pudo cargar el reporte Financial AI.';
   return 'Sin reporte generado para este periodo.';
 }
