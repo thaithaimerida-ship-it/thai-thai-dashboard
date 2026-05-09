@@ -213,71 +213,77 @@ function toReportesIARow(
 }
 
 export async function POST(request: Request) {
-  const token = getCookieValue(request.headers.get('cookie'), DASHBOARD_AUTH_COOKIE);
-  const isAuthorized = await verifyDashboardSessionToken(token);
-  if (!isAuthorized) {
-    return jsonError('Unauthorized', 401, 'UNAUTHORIZED', 'AUTH');
-  }
-
-  const body = await readBody(request);
-  if (body === null) {
-    return jsonError('Body JSON invalido', 400, 'INVALID_PERIOD', 'BODY_PARSE');
-  }
-
-  const periodId = typeof body?.periodId === 'string' ? body.periodId : '';
-  const parsed = parsePeriodId(periodId);
-
-  if (!parsed.ok) {
-    return jsonError(
-      `Periodo invalido: ${parsed.error}`,
-      400,
-      'INVALID_PERIOD',
-      'PERIOD_VALIDATION',
-      periodId,
-    );
-  }
-
-  const { period } = parsed;
-
-  if (!isMonthClosed(period.year, period.month)) {
-    return jsonError(
-      'No se puede generar reporte mensual de un mes abierto o futuro',
-      400,
-      'OPEN_PERIOD',
-      'PERIOD_VALIDATION',
-      periodId,
-    );
-  }
+  let periodId = '';
 
   try {
-    const existing = await findExistingReportByPeriod(periodId);
-    if (existing) {
-      return existingReportResponse(periodId, true, existing.Report_JSON);
+    const token = getCookieValue(request.headers.get('cookie'), DASHBOARD_AUTH_COOKIE);
+    const isAuthorized = await verifyDashboardSessionToken(token);
+    if (!isAuthorized) {
+      return jsonError('Unauthorized', 401, 'UNAUTHORIZED', 'AUTH');
     }
-  } catch (error) {
-    return toStatusError(error, periodId, 'EXISTING_REPORT_LOOKUP');
-  }
 
-  let generated: GeneratedFinancialAIReport;
-  try {
-    generated = await generateFinancialAIReport(periodId);
-  } catch (error) {
-    return toStatusError(error, periodId, 'PAYLOAD_OR_AI_GENERATION');
-  }
+    const body = await readBody(request);
+    if (body === null) {
+      return jsonError('Body JSON invalido', 400, 'INVALID_PERIOD', 'BODY_PARSE');
+    }
 
-  try {
-    await appendClosedMonthlyReport(
-      toReportesIARow(periodId, period.year, period.month, generated),
-    );
-  } catch (error) {
-    return toStatusError(error, periodId, 'REPORT_APPEND');
-  }
+    periodId = typeof body?.periodId === 'string' ? body.periodId : '';
+    const parsed = parsePeriodId(periodId);
 
-  return NextResponse.json({
-    generated: true,
-    locked: true,
-    period: periodId,
-    report_json: generated.report,
-    parse_error: false,
-  });
+    if (!parsed.ok) {
+      return jsonError(
+        `Periodo invalido: ${parsed.error}`,
+        400,
+        'INVALID_PERIOD',
+        'PERIOD_VALIDATION',
+        periodId,
+      );
+    }
+
+    const { period } = parsed;
+
+    if (!isMonthClosed(period.year, period.month)) {
+      return jsonError(
+        'No se puede generar reporte mensual de un mes abierto o futuro',
+        400,
+        'OPEN_PERIOD',
+        'PERIOD_VALIDATION',
+        periodId,
+      );
+    }
+
+    try {
+      const existing = await findExistingReportByPeriod(periodId);
+      if (existing) {
+        return existingReportResponse(periodId, true, existing.Report_JSON);
+      }
+    } catch (error) {
+      return toStatusError(error, periodId, 'EXISTING_REPORT_LOOKUP');
+    }
+
+    let generated: GeneratedFinancialAIReport;
+    try {
+      generated = await generateFinancialAIReport(periodId);
+    } catch (error) {
+      return toStatusError(error, periodId, 'PAYLOAD_OR_AI_GENERATION');
+    }
+
+    try {
+      await appendClosedMonthlyReport(
+        toReportesIARow(periodId, period.year, period.month, generated),
+      );
+    } catch (error) {
+      return toStatusError(error, periodId, 'REPORT_APPEND');
+    }
+
+    return NextResponse.json({
+      generated: true,
+      locked: true,
+      period: periodId,
+      report_json: generated.report,
+      parse_error: false,
+    });
+  } catch (error) {
+    return toStatusError(error, periodId, 'UNKNOWN');
+  }
 }
