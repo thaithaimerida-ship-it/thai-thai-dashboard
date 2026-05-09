@@ -162,7 +162,7 @@ export function parseDate(value: string | null | undefined): Date | null {
     noviembre: 11,
     diciembre: 12,
   };
-  const text = raw.match(/(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)\s+(?:de\s+)?,?\s*(\d{4})/i);
+  const text = raw.match(/(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+),?\s+(?:de\s+)?(\d{4})/i);
   if (text) {
     const month = months[normalizeText(text[2])];
     if (month) return makeDate(Number(text[3]), month, Number(text[1]));
