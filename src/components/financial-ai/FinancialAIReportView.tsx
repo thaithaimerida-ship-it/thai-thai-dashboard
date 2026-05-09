@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 interface FinancialAIReportViewProps {
   report: FinancialReport;
   selectedMonthLabel: string;
+  isDemo?: boolean;
 }
 
 function formatCurrency(value: number) {
@@ -66,9 +67,11 @@ function SectionTitle({
 export function FinancialAIReportView({
   report,
   selectedMonthLabel,
+  isDemo = false,
 }: FinancialAIReportViewProps) {
   return (
     <div className="space-y-6">
+      {isDemo && (
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex w-fit items-center rounded-full border border-amber-400 bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-900">
@@ -82,6 +85,7 @@ export function FinancialAIReportView({
           Este reporte es una simulación visual. No está conectado a datos reales.
         </p>
       </div>
+      )}
 
       <Card className="border-slate-200 bg-white shadow-sm">
         <CardHeader className="space-y-6 border-b border-slate-100 bg-slate-50/80 p-5 sm:p-6">
@@ -101,12 +105,19 @@ export function FinancialAIReportView({
               </div>
 
               <div>
+                {isDemo && (
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Mock local · no conectado a datos reales
                 </p>
+                )}
                 <CardTitle className="mt-2 text-2xl text-slate-950">
-                  Reporte demo · Abril 2026
+                  {isDemo ? 'Reporte demo · Abril 2026' : `Reporte Financial AI · ${selectedMonthLabel}`}
                 </CardTitle>
+                {false && (
+                <p className="hidden">
+                  Reporte demo · Abril 2026
+                </p>
+                )}
                 <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-600">
                   {report.resumen_ejecutivo}
                 </p>
