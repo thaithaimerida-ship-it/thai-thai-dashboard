@@ -19,6 +19,7 @@ type ReportLoadState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'empty' }
+  | { status: 'generating' }
   | { status: 'loaded'; period: string; report: FinancialReport }
   | { status: 'unauthorized' }
   | { status: 'parse-error' }
@@ -30,6 +31,15 @@ interface UiReportResponse {
   locked: boolean;
   estado?: string;
   fecha_generacion?: string;
+  report_json?: unknown;
+  parse_error?: boolean;
+  error?: string;
+}
+
+interface GenerateUiResponse {
+  generated?: boolean;
+  period?: string;
+  locked?: boolean;
   report_json?: unknown;
   parse_error?: boolean;
   error?: string;
@@ -82,15 +92,29 @@ function isFinancialReport(value: unknown): value is FinancialReport {
   return Boolean(value && typeof value === 'object' && 'metadata' in value);
 }
 
-function DisabledGenerateButton() {
+function GenerateButton({
+  canGenerate,
+  isGenerating,
+  onGenerate,
+}: {
+  canGenerate: boolean;
+  isGenerating: boolean;
+  onGenerate: () => void;
+}) {
   return (
     <button
       type="button"
-      disabled
-      className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+      disabled={!canGenerate || isGenerating}
+      onClick={onGenerate}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+        canGenerate && !isGenerating
+          ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+          : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400',
+      )}
     >
       <BrainCircuit className="h-4 w-4" />
-      Generar Analisis
+      {isGenerating ? 'Generando...' : 'Generar Analisis'}
     </button>
   );
 }
@@ -162,6 +186,54 @@ export function FinancialAIAnalysisTab({
     return () => controller.abort();
   }, [canLoadSavedReport, periodId]);
 
+  async function handleGenerateReport() {
+    if (!canLoadSavedReport || !periodId || reportState.status === 'generating') return;
+
+    const confirmed = window.confirm(
+      `Generar el reporte Financial AI para ${selectedMonthLabel}? ` +
+        'Si se genera correctamente, quedara bloqueado y no podra regenerarse.',
+    );
+    if (!confirmed) return;
+
+    setReportState({ status: 'generating' });
+
+    try {
+      const response = await fetch('/api/financial-ai/generate-ui', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ periodId }),
+      });
+
+      if (response.status === 401) {
+        setReportState({ status: 'unauthorized' });
+        return;
+      }
+
+      const data = (await response.json()) as GenerateUiResponse;
+
+      if (!response.ok) {
+        setReportState({ status: 'error' });
+        return;
+      }
+
+      if (data.parse_error || !isFinancialReport(data.report_json)) {
+        setReportState({ status: 'parse-error' });
+        return;
+      }
+
+      setReportState({ status: 'loaded', period: periodId, report: data.report_json });
+    } catch {
+      setReportState({ status: 'error' });
+    }
+  }
+
+  const canGenerateReport =
+    canLoadSavedReport && reportState.status === 'empty' && !shouldShowMockReport;
+  const isGeneratingReport = reportState.status === 'generating';
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -220,9 +292,17 @@ export function FinancialAIAnalysisTab({
                 </p>
               </div>
 
-              <DisabledGenerateButton />
+              <GenerateButton
+                canGenerate={canGenerateReport}
+                isGenerating={isGeneratingReport}
+                onGenerate={handleGenerateReport}
+              />
             </div>
-            <p className="mt-3 text-xs text-gray-500">Generacion no conectada todavia.</p>
+            <p className="mt-3 text-xs text-gray-500">
+              {canGenerateReport
+                ? 'La generacion requiere confirmacion y bloqueara el reporte mensual.'
+                : 'Generacion disponible solo para meses cerrados sin reporte guardado.'}
+            </p>
           </CardHeader>
 
           <CardContent className="p-4 sm:p-6">
@@ -261,6 +341,7 @@ export function FinancialAIAnalysisTab({
 function getStateTitle(status: ReportLoadState['status'], canLoadSavedReport: boolean): string {
   if (!canLoadSavedReport) return 'Periodo no disponible para Financial AI V1';
   if (status === 'loading') return 'Cargando reporte Financial AI';
+  if (status === 'generating') return 'Generando reporte Financial AI';
   if (status === 'unauthorized') return 'Sesion no autorizada';
   if (status === 'parse-error') return 'Reporte guardado no legible';
   if (status === 'error') return 'No se pudo cargar el reporte';
@@ -274,6 +355,7 @@ function getStateMessage(
 ): string {
   if (!canLoadSavedReport) return blockedMessage;
   if (status === 'loading') return 'Buscando si ya existe un reporte guardado para este mes.';
+  if (status === 'generating') return 'Generando y guardando el reporte. No cierres esta ventana.';
   if (status === 'unauthorized') return 'Sesion no autorizada. Vuelve a iniciar sesion.';
   if (status === 'parse-error') return 'El reporte guardado no pudo leerse correctamente.';
   if (status === 'error') return 'No se pudo cargar el reporte Financial AI.';
