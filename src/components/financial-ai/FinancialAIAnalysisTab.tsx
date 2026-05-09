@@ -23,7 +23,7 @@ type ReportLoadState =
   | { status: 'loaded'; period: string; report: FinancialReport }
   | { status: 'unauthorized' }
   | { status: 'parse-error' }
-  | { status: 'error'; message?: string; errorCode?: string; title?: string };
+  | { status: 'error'; message?: string; errorCode?: string; errorStage?: string; title?: string };
 
 interface UiReportResponse {
   exists: boolean;
@@ -44,6 +44,7 @@ interface GenerateUiResponse {
   parse_error?: boolean;
   error?: string;
   error_code?: string;
+  error_stage?: string;
 }
 
 interface PeriodOption {
@@ -163,13 +164,16 @@ function isFinancialReport(value: unknown): value is FinancialReport {
   return Boolean(value && typeof value === 'object' && 'metadata' in value);
 }
 
-function isErrorPayload(value: unknown): value is { error?: unknown; error_code?: unknown } {
+function isErrorPayload(
+  value: unknown,
+): value is { error?: unknown; error_code?: unknown; error_stage?: unknown } {
   return Boolean(value && typeof value === 'object' && 'error' in value);
 }
 
 async function readErrorPayload(response: Response): Promise<{
   message?: string;
   errorCode?: string;
+  errorStage?: string;
 }> {
   try {
     const data: unknown = await response.json();
@@ -178,6 +182,7 @@ async function readErrorPayload(response: Response): Promise<{
     return {
       message: typeof data.error === 'string' ? data.error : undefined,
       errorCode: typeof data.error_code === 'string' ? data.error_code : undefined,
+      errorStage: typeof data.error_stage === 'string' ? data.error_stage : undefined,
     };
   } catch {
     return {};
@@ -274,6 +279,7 @@ export function FinancialAIAnalysisTab({
             title: 'No se pudo cargar el reporte',
             message: errorPayload.message,
             errorCode: errorPayload.errorCode,
+            errorStage: errorPayload.errorStage,
           });
           return;
         }
@@ -338,6 +344,7 @@ export function FinancialAIAnalysisTab({
           title: 'No se pudo generar el reporte',
           message: errorPayload.message || 'No se pudo generar el reporte Financial AI.',
           errorCode: errorPayload.errorCode,
+          errorStage: errorPayload.errorStage,
         });
         return;
       }
@@ -443,6 +450,11 @@ export function FinancialAIAnalysisTab({
                     {reportState.errorCode && (
                       <p className="mt-1 text-xs font-medium uppercase tracking-wide text-red-700">
                         Codigo: {reportState.errorCode}
+                      </p>
+                    )}
+                    {reportState.errorStage && (
+                      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-red-700">
+                        Etapa: {reportState.errorStage}
                       </p>
                     )}
                   </div>

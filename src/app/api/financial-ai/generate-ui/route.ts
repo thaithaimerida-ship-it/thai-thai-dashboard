@@ -42,6 +42,15 @@ type GenerateErrorCode =
   | 'GOOGLE_SHEETS_ERROR'
   | 'UNKNOWN_GENERATE_ERROR';
 
+type GenerateErrorStage =
+  | 'AUTH'
+  | 'BODY_PARSE'
+  | 'PERIOD_VALIDATION'
+  | 'EXISTING_REPORT_LOOKUP'
+  | 'PAYLOAD_OR_AI_GENERATION'
+  | 'REPORT_APPEND'
+  | 'UNKNOWN';
+
 function getCookieValue(cookieHeader: string | null, name: string): string | undefined {
   if (!cookieHeader) return undefined;
 
@@ -72,12 +81,14 @@ function logGenerateError(
   periodId: string,
   status: number,
   errorCode: GenerateErrorCode,
+  errorStage: GenerateErrorStage,
   message: string,
 ) {
   console.error('[financial-ai/generate-ui]', {
     periodId: periodId || 'unknown',
     status,
     error_code: errorCode,
+    error_stage: errorStage,
     message,
   });
 }
@@ -86,10 +97,14 @@ function jsonError(
   message: string,
   status: number,
   errorCode: GenerateErrorCode,
+  errorStage: GenerateErrorStage,
   periodId = '',
 ) {
-  logGenerateError(periodId, status, errorCode, message);
-  return NextResponse.json({ error: message, error_code: errorCode }, { status });
+  logGenerateError(periodId, status, errorCode, errorStage, message);
+  return NextResponse.json(
+    { error: message, error_code: errorCode, error_stage: errorStage },
+    { status },
+  );
 }
 
 function isGoogleSheetsError(error: unknown): boolean {
@@ -97,35 +112,43 @@ function isGoogleSheetsError(error: unknown): boolean {
   return /google|sheet|spreadsheet|permission|unable to parse range/i.test(error.message);
 }
 
-function toStatusError(error: unknown, periodId: string) {
+function toStatusError(error: unknown, periodId: string, errorStage: GenerateErrorStage) {
   if (error instanceof InsufficientFinancialDataError) {
-    return jsonError(error.message, 422, 'INSUFFICIENT_FINANCIAL_DATA', periodId);
+    return jsonError(error.message, 422, 'INSUFFICIENT_FINANCIAL_DATA', errorStage, periodId);
   }
   if (error instanceof MissingAnthropicApiKeyError) {
     return jsonError(
       'Falta configurar la API key de Anthropic',
       500,
       'ANTHROPIC_MISSING_KEY',
+      errorStage,
       periodId,
     );
   }
   if (error instanceof AnthropicTimeoutError) {
-    return jsonError(error.message, 504, 'ANTHROPIC_TIMEOUT', periodId);
+    return jsonError(error.message, 504, 'ANTHROPIC_TIMEOUT', errorStage, periodId);
   }
   if (error instanceof AnthropicRequestError) {
     return jsonError(
       'Error al solicitar analisis financiero a Anthropic',
       502,
       'ANTHROPIC_REQUEST_ERROR',
+      errorStage,
       periodId,
     );
   }
   if (error instanceof InvalidAIResponseError) {
-    return jsonError(error.message, 502, 'INVALID_AI_RESPONSE', periodId);
+    return jsonError(error.message, 502, 'INVALID_AI_RESPONSE', errorStage, periodId);
   }
 
   if (error instanceof Error && error.message.includes('Ya existe un reporte mensual cerrado')) {
-    return jsonError('El reporte ya existe y quedo bloqueado', 409, 'EXISTING_REPORT', periodId);
+    return jsonError(
+      'El reporte ya existe y quedo bloqueado',
+      409,
+      'EXISTING_REPORT',
+      errorStage,
+      periodId,
+    );
   }
 
   if (isGoogleSheetsError(error)) {
@@ -133,6 +156,7 @@ function toStatusError(error: unknown, periodId: string) {
       'Error al leer o guardar datos en Google Sheets',
       500,
       'GOOGLE_SHEETS_ERROR',
+      errorStage,
       periodId,
     );
   }
@@ -141,6 +165,7 @@ function toStatusError(error: unknown, periodId: string) {
     'Error inesperado al generar reporte financiero IA',
     500,
     'UNKNOWN_GENERATE_ERROR',
+    errorStage,
     periodId,
   );
 }
@@ -191,47 +216,68 @@ export async function POST(request: Request) {
   const token = getCookieValue(request.headers.get('cookie'), DASHBOARD_AUTH_COOKIE);
   const isAuthorized = await verifyDashboardSessionToken(token);
   if (!isAuthorized) {
-    return jsonError('Unauthorized', 401, 'UNAUTHORIZED');
+    return jsonError('Unauthorized', 401, 'UNAUTHORIZED', 'AUTH');
   }
 
   const body = await readBody(request);
+  if (body === null) {
+    return jsonError('Body JSON invalido', 400, 'INVALID_PERIOD', 'BODY_PARSE');
+  }
+
   const periodId = typeof body?.periodId === 'string' ? body.periodId : '';
   const parsed = parsePeriodId(periodId);
 
   if (!parsed.ok) {
-    return jsonError(`Periodo invalido: ${parsed.error}`, 400, 'INVALID_PERIOD', periodId);
+    return jsonError(
+      `Periodo invalido: ${parsed.error}`,
+      400,
+      'INVALID_PERIOD',
+      'PERIOD_VALIDATION',
+      periodId,
+    );
   }
 
   const { period } = parsed;
 
-  try {
-    if (!isMonthClosed(period.year, period.month)) {
-      return jsonError(
-        'No se puede generar reporte mensual de un mes abierto o futuro',
-        400,
-        'OPEN_PERIOD',
-        periodId,
-      );
-    }
+  if (!isMonthClosed(period.year, period.month)) {
+    return jsonError(
+      'No se puede generar reporte mensual de un mes abierto o futuro',
+      400,
+      'OPEN_PERIOD',
+      'PERIOD_VALIDATION',
+      periodId,
+    );
+  }
 
+  try {
     const existing = await findExistingReportByPeriod(periodId);
     if (existing) {
       return existingReportResponse(periodId, true, existing.Report_JSON);
     }
+  } catch (error) {
+    return toStatusError(error, periodId, 'EXISTING_REPORT_LOOKUP');
+  }
 
-    const generated = await generateFinancialAIReport(periodId);
+  let generated: GeneratedFinancialAIReport;
+  try {
+    generated = await generateFinancialAIReport(periodId);
+  } catch (error) {
+    return toStatusError(error, periodId, 'PAYLOAD_OR_AI_GENERATION');
+  }
+
+  try {
     await appendClosedMonthlyReport(
       toReportesIARow(periodId, period.year, period.month, generated),
     );
-
-    return NextResponse.json({
-      generated: true,
-      locked: true,
-      period: periodId,
-      report_json: generated.report,
-      parse_error: false,
-    });
   } catch (error) {
-    return toStatusError(error, periodId);
+    return toStatusError(error, periodId, 'REPORT_APPEND');
   }
+
+  return NextResponse.json({
+    generated: true,
+    locked: true,
+    period: periodId,
+    report_json: generated.report,
+    parse_error: false,
+  });
 }
