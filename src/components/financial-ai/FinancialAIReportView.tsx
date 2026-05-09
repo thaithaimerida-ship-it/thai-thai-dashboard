@@ -1,16 +1,20 @@
+import type { LucideIcon } from 'lucide-react';
 import {
-  AlertTriangle,
   BadgeCheck,
   BarChart3,
   CheckCircle2,
+  CircleAlert,
+  ClipboardList,
   FileLock2,
   Lightbulb,
   Lock,
   MinusCircle,
+  ShieldCheck,
+  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import type { FinancialReport, SemaforoEstado } from '@/lib/financial-ai/schema';
 import { cn } from '@/lib/utils';
 
@@ -29,10 +33,14 @@ function formatCurrency(value: number) {
 }
 
 function formatPercent(value: number) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'percent',
-    maximumFractionDigits: 1,
-  }).format(value);
+  if (Math.abs(value) <= 1) {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'percent',
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+
+  return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 }).format(value)}%`;
 }
 
 function statusTone(status: SemaforoEstado) {
@@ -41,27 +49,74 @@ function statusTone(status: SemaforoEstado) {
   return 'border-rose-200 bg-rose-50 text-rose-700';
 }
 
+function statusDot(status: SemaforoEstado) {
+  if (status === 'verde') return 'bg-emerald-500';
+  if (status === 'amarillo') return 'bg-amber-500';
+  return 'bg-rose-500';
+}
+
 function priorityTone(priority: 'alta' | 'media' | 'baja') {
-  if (priority === 'alta') return 'border-rose-200 bg-rose-50 text-rose-700';
-  if (priority === 'media') return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (priority === 'alta') return 'border-blue-200 bg-blue-50 text-blue-700';
+  if (priority === 'media') return 'border-sky-200 bg-sky-50 text-sky-700';
   return 'border-slate-200 bg-slate-50 text-slate-600';
 }
 
-function SectionTitle({
-  icon: Icon,
+function SectionHeading({
+  number,
   title,
+  icon: Icon,
+  description,
 }: {
-  icon: typeof BarChart3;
+  number: number;
   title: string;
+  icon: LucideIcon;
+  description?: string;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="rounded-md bg-slate-100 p-2 text-slate-700">
-        <Icon className="h-4 w-4" />
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm">
+          {number}
+        </span>
+        <div>
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4 text-slate-500" />
+            <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+          </div>
+          {description && (
+            <p className="mt-1 text-sm leading-relaxed text-slate-500">{description}</p>
+          )}
+        </div>
       </div>
-      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
     </div>
   );
+}
+
+function SectionCard({
+  number,
+  title,
+  icon,
+  description,
+  children,
+  className,
+}: {
+  number: number;
+  title: string;
+  icon: LucideIcon;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn('rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6', className)}>
+      <SectionHeading number={number} title={title} icon={icon} description={description} />
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function normalizeLabel(value: string) {
+  return value.replaceAll('_', ' ');
 }
 
 export function FinancialAIReportView({
@@ -72,305 +127,314 @@ export function FinancialAIReportView({
   return (
     <div className="space-y-6">
       {isDemo && (
-      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <span className="inline-flex w-fit items-center rounded-full border border-amber-400 bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-900">
-            Vista demo · datos de ejemplo
-          </span>
-          <span className="text-xs font-medium text-amber-800">
-            Selector actual: {selectedMonthLabel}
-          </span>
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-400 bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-950">
+              <Sparkles className="h-4 w-4" />
+              Vista demo · datos de ejemplo
+            </span>
+            <span className="text-sm font-medium text-amber-900">
+              Periodo del selector: {selectedMonthLabel}
+            </span>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-amber-950">
+            Este reporte es una simulacion visual. No esta conectado a datos reales.
+          </p>
         </div>
-        <p className="mt-3 text-sm leading-relaxed text-amber-900">
-          Este reporte es una simulación visual. No está conectado a datos reales.
-        </p>
-      </div>
       )}
 
-      <Card className="border-slate-200 bg-white shadow-sm">
-        <CardHeader className="space-y-6 border-b border-slate-100 bg-slate-50/80 p-5 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
-                  <Lock className="h-3.5 w-3.5" />
-                  Reporte bloqueado
-                </span>
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                  Mensual cerrado
-                </span>
-                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-                  No regenerable
-                </span>
-              </div>
-
-              <div>
-                {isDemo && (
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Mock local · no conectado a datos reales
-                </p>
-                )}
-                <CardTitle className="mt-2 text-2xl text-slate-950">
-                  {isDemo ? 'Reporte demo · Abril 2026' : `Reporte Financial AI · ${selectedMonthLabel}`}
-                </CardTitle>
-                {false && (
-                <p className="hidden">
-                  Reporte demo · Abril 2026
-                </p>
-                )}
-                <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-600">
-                  {report.resumen_ejecutivo}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              disabled
-              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
-            >
-              <FileLock2 className="h-4 w-4" />
-              Generar Análisis
-            </button>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-8 p-5 sm:p-6">
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-5 lg:col-span-2">
-              <SectionTitle icon={BadgeCheck} title="Diagnóstico general" />
-              <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                {report.diagnostico_general.lectura}
-              </p>
-              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg border border-rose-100 bg-rose-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
-                    Principal riesgo
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-rose-900">
-                    {report.diagnostico_general.principal_riesgo}
-                  </p>
+      <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+        <CardContent className="p-0">
+          <div className="border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white p-5 sm:p-7">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+              <div className="max-w-4xl space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    V1 · Solo meses cerrados
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    <Lock className="h-3.5 w-3.5" />
+                    Reporte bloqueado
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                    <FileLock2 className="h-3.5 w-3.5" />
+                    No regenerable
+                  </span>
+                  {isDemo && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                      Mock local
+                    </span>
+                  )}
                 </div>
-                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                    Principal oportunidad
+
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    {isDemo ? 'Reporte demo · Abril 2026' : `Periodo · ${selectedMonthLabel}`}
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-emerald-900">
-                    {report.diagnostico_general.principal_oportunidad}
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                    Análisis Financiero IA
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Reporte financiero mensual generado con IA
                   </p>
                 </div>
               </div>
-            </div>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                Estado del mes
-              </p>
-              <p className="mt-2 text-2xl font-semibold">
-                {report.diagnostico_general.estado_mes.replaceAll('_', ' ')}
-              </p>
-              <p className="mt-4 text-sm leading-relaxed text-slate-300">
-                Bloqueado para conservar la lectura del cierre mensual.
-              </p>
+              <button
+                type="button"
+                disabled
+                className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+              >
+                <FileLock2 className="h-4 w-4" />
+                Generar Analisis
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {report.kpis_ejecutivos.map((kpi) => (
-              <div key={kpi.nombre} className="rounded-lg border border-slate-200 bg-white p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">{kpi.nombre}</p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-950">
-                      {kpi.valor_real}
+          <div className="space-y-6 bg-slate-50/60 p-4 sm:p-6">
+            <SectionCard number={1} title="Resumen ejecutivo" icon={ClipboardList}>
+              <p className="max-w-5xl text-base leading-7 text-slate-700">
+                {report.resumen_ejecutivo}
+              </p>
+            </SectionCard>
+
+            <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+              <SectionCard number={2} title="Diagnóstico general" icon={BadgeCheck}>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Estado
+                    </p>
+                    <p className="mt-2 text-xl font-semibold capitalize text-slate-950">
+                      {normalizeLabel(report.diagnostico_general.estado_mes)}
+                    </p>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                      {report.diagnostico_general.lectura}
                     </p>
                   </div>
-                  <span className={cn('rounded-full border px-2 py-1 text-xs', statusTone(kpi.estado))}>
-                    {kpi.estado}
-                  </span>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="rounded-lg border border-rose-100 bg-rose-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                        Principal riesgo
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-rose-950">
+                        {report.diagnostico_general.principal_riesgo}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                        Principal oportunidad
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-emerald-950">
+                        {report.diagnostico_general.principal_oportunidad}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">
-                  Objetivo {kpi.objetivo} · Gap {kpi.gap}
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{kpi.lectura}</p>
-              </div>
-            ))}
-          </div>
+              </SectionCard>
 
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_1.4fr]">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <SectionTitle icon={BarChart3} title="Semáforo KPI" />
-              <div className="mt-5 space-y-4">
-                {report.semaforo_kpis.map((kpi) => (
-                  <div key={kpi.nombre} className="rounded-lg border border-slate-100 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium text-slate-800">{kpi.nombre}</p>
-                      <span className={cn('rounded-full border px-2 py-1 text-xs', statusTone(kpi.estado))}>
+              <div className="rounded-xl border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                  <ShieldCheck className="h-4 w-4" />
+                  Cierre mensual
+                </div>
+                <p className="mt-4 text-2xl font-semibold">
+                  {isDemo ? 'Abril 2026' : selectedMonthLabel}
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-300">
+                  La lectura queda bloqueada para conservar una foto consistente del cierre.
+                </p>
+              </div>
+            </section>
+
+            <SectionCard
+              number={3}
+              title="KPIs ejecutivos"
+              icon={BarChart3}
+              description="Lectura compacta de indicadores principales y semáforo de salud financiera."
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                {[...report.kpis_ejecutivos, ...report.semaforo_kpis].slice(0, 5).map((kpi) => (
+                  <div key={kpi.nombre} className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-500">{kpi.nombre}</p>
+                      <span className={cn('h-2.5 w-2.5 rounded-full', statusDot(kpi.estado))} />
+                    </div>
+                    <p className="mt-3 text-2xl font-semibold text-slate-950">{kpi.valor_real}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={cn('rounded-full border px-2 py-1 text-xs font-medium', statusTone(kpi.estado))}>
                         {kpi.estado}
                       </span>
+                      <span className="text-xs text-slate-500">Obj. {kpi.objetivo}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {kpi.valor_real} vs {kpi.objetivo}
-                    </p>
-                    <p className="mt-3 text-sm leading-relaxed text-slate-600">{kpi.lectura}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <SectionTitle icon={TrendingUp} title="Análisis de canales" />
-              <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                {report.analisis_canales.resumen}
-              </p>
-              <div className="mt-5 overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                      <th className="py-2 pr-3 font-semibold">Canal</th>
-                      <th className="px-3 py-2 font-semibold">Bruto</th>
-                      <th className="px-3 py-2 font-semibold">Comisión</th>
-                      <th className="px-3 py-2 font-semibold">Neto</th>
-                      <th className="py-2 pl-3 font-semibold">% comisión</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.analisis_canales.canales.map((canal) => (
-                      <tr key={canal.canal} className="border-b border-slate-100 last:border-0">
-                        <td className="py-3 pr-3 font-medium text-slate-800">{canal.canal}</td>
-                        <td className="px-3 py-3 text-slate-600">{formatCurrency(canal.bruto)}</td>
-                        <td className="px-3 py-3 text-slate-600">
-                          {formatCurrency(canal.comision)}
-                        </td>
-                        <td className="px-3 py-3 font-medium text-slate-900">
-                          {formatCurrency(canal.neto)}
-                        </td>
-                        <td className="py-3 pl-3 text-slate-600">
-                          {formatPercent(canal.porcentaje_comision)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
-              <SectionTitle icon={CheckCircle2} title="Hallazgos confirmados" />
-              <div className="mt-5 space-y-4">
-                {report.hallazgos_confirmados.map((hallazgo) => (
-                  <div key={hallazgo.titulo} className="rounded-lg bg-white/80 p-4">
-                    <p className="font-medium text-emerald-950">{hallazgo.titulo}</p>
-                    <p className="mt-2 text-xs font-semibold text-emerald-700">
-                      {hallazgo.dato_base}
+            <SectionCard
+              number={4}
+              title="Análisis por canales"
+              icon={TrendingUp}
+              description={report.analisis_canales.resumen}
+            >
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_2fr]">
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Canal mas rentable
                     </p>
-                    <p className="mt-3 text-sm leading-relaxed text-emerald-900">
-                      {hallazgo.lectura}
+                    <p className="mt-2 font-semibold text-emerald-950">
+                      {report.analisis_canales.canal_mas_rentable}
                     </p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
-              <SectionTitle icon={Lightbulb} title="Hipótesis operativas" />
-              <div className="mt-5 space-y-4">
-                {report.hipotesis_operativas.map((hipotesis) => (
-                  <div key={hipotesis.hipotesis} className="rounded-lg bg-white/80 p-4">
-                    <p className="font-medium text-amber-950">{hipotesis.hipotesis}</p>
-                    <p className="mt-3 text-sm leading-relaxed text-amber-900">
-                      {hipotesis.por_que_importa}
+                  <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                      Canal de mayor riesgo
                     </p>
-                    <p className="mt-3 text-xs text-amber-700">
-                      Validar con: {hipotesis.dato_necesario_para_confirmar}
+                    <p className="mt-2 font-semibold text-amber-950">
+                      {report.analisis_canales.canal_mayor_riesgo}
                     </p>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
-              <SectionTitle icon={TrendingUp} title="Acciones sugeridas" />
-              <div className="mt-5 space-y-4">
-                {report.acciones_sugeridas.map((accion) => (
-                  <div key={accion.accion} className="rounded-lg bg-white/80 p-4">
-                    <span
-                      className={cn(
-                        'rounded-full border px-2 py-1 text-xs font-medium',
-                        priorityTone(accion.prioridad),
-                      )}
-                    >
-                      Prioridad {accion.prioridad}
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <thead className="bg-slate-50">
+                        <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                          <th className="px-4 py-3 font-semibold">Canal</th>
+                          <th className="px-4 py-3 font-semibold">Bruto</th>
+                          <th className="px-4 py-3 font-semibold">Comision</th>
+                          <th className="px-4 py-3 font-semibold">Neto</th>
+                          <th className="px-4 py-3 font-semibold">% comision</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.analisis_canales.canales.map((canal) => (
+                          <tr key={canal.canal} className="border-b border-slate-100 last:border-0">
+                            <td className="px-4 py-3 font-medium text-slate-900">{canal.canal}</td>
+                            <td className="px-4 py-3 text-slate-600">{formatCurrency(canal.bruto)}</td>
+                            <td className="px-4 py-3 text-slate-600">{formatCurrency(canal.comision)}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-950">{formatCurrency(canal.neto)}</td>
+                            <td className="px-4 py-3 text-slate-600">{formatPercent(canal.porcentaje_comision)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <SectionCard number={5} title="Hallazgos confirmados" icon={CheckCircle2} className="border-emerald-200 bg-emerald-50">
+                <div className="space-y-4">
+                  {report.hallazgos_confirmados.map((hallazgo) => (
+                    <div key={hallazgo.titulo} className="rounded-lg border border-emerald-100 bg-white p-4">
+                      <p className="font-semibold text-emerald-950">{hallazgo.titulo}</p>
+                      <p className="mt-2 text-xs font-semibold text-emerald-700">{hallazgo.dato_base}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-emerald-900">{hallazgo.lectura}</p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+
+              <SectionCard number={6} title="Hipótesis operativas" icon={Lightbulb} className="border-amber-200 bg-amber-50">
+                <div className="space-y-4">
+                  {report.hipotesis_operativas.map((hipotesis) => (
+                    <div key={hipotesis.hipotesis} className="rounded-lg border border-amber-100 bg-white p-4">
+                      <p className="font-semibold text-amber-950">{hipotesis.hipotesis}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-amber-900">{hipotesis.por_que_importa}</p>
+                      <p className="mt-3 text-xs font-medium text-amber-700">
+                        Dato necesario: {hipotesis.dato_necesario_para_confirmar}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+
+              <SectionCard number={7} title="Acciones sugeridas" icon={ClipboardList} className="border-blue-200 bg-blue-50">
+                <div className="space-y-4">
+                  {report.acciones_sugeridas.map((accion) => (
+                    <div key={accion.accion} className="rounded-lg border border-blue-100 bg-white p-4">
+                      <span className={cn('rounded-full border px-2 py-1 text-xs font-semibold', priorityTone(accion.prioridad))}>
+                        Prioridad {accion.prioridad}
+                      </span>
+                      <p className="mt-3 font-semibold text-blue-950">{accion.accion}</p>
+                      <p className="mt-3 text-sm text-blue-900">
+                        {accion.responsable_sugerido} · {accion.plazo_sugerido}
+                      </p>
+                      <p className="mt-3 text-sm leading-relaxed text-blue-900">{accion.impacto_esperado}</p>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            </section>
+
+            <SectionCard number={8} title="Ingeniería de menú" icon={MinusCircle} className="bg-slate-100">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                    {report.ingenieria_menu.disponible ? 'Disponible' : 'No disponible'}
+                  </span>
+                  {!report.ingenieria_menu.disponible && (
+                    <span className="text-sm font-medium text-slate-700">
+                      Falta venta por platillo y costo receta.
                     </span>
-                    <p className="mt-3 font-medium text-blue-950">{accion.accion}</p>
-                    <p className="mt-3 text-sm text-blue-900">
-                      {accion.responsable_sugerido} · {accion.plazo_sugerido}
-                    </p>
-                    <p className="mt-3 text-sm leading-relaxed text-blue-900">
-                      {accion.impacto_esperado}
-                    </p>
-                  </div>
-                ))}
+                  )}
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600">
+                  {report.ingenieria_menu.lectura}
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {report.ingenieria_menu.limitaciones.map((limitacion) => (
+                    <div key={limitacion} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                      {limitacion}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
+            </SectionCard>
 
-          {!report.ingenieria_menu.disponible && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-              <SectionTitle icon={MinusCircle} title="Ingeniería de menú no disponible" />
-              <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                {report.ingenieria_menu.lectura}
-              </p>
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                {report.ingenieria_menu.limitaciones.map((limitacion) => (
-                  <div
-                    key={limitacion}
-                    className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600"
-                  >
-                    {limitacion}
-                  </div>
-                ))}
+            {report.alertas_riesgo.length > 0 && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm sm:p-6">
+                <div className="flex items-center gap-2">
+                  <CircleAlert className="h-4 w-4 text-rose-600" />
+                  <h3 className="text-base font-semibold text-rose-950">Alertas de riesgo</h3>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {report.alertas_riesgo.map((alerta) => (
+                    <div key={alerta.alerta} className="rounded-lg border border-rose-100 bg-white p-4">
+                      <p className="font-semibold text-rose-950">{alerta.alerta}</p>
+                      <p className="mt-2 text-xs font-semibold text-rose-700">
+                        Nivel {alerta.nivel} · {alerta.dato_base}
+                      </p>
+                      <p className="mt-3 text-sm leading-relaxed text-rose-900">
+                        {alerta.accion_recomendada}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {report.alertas_riesgo.length > 0 && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 p-5">
-              <SectionTitle icon={AlertTriangle} title="Alertas de riesgo" />
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {report.alertas_riesgo.map((alerta) => (
-                  <div key={alerta.alerta} className="rounded-lg bg-white/80 p-4">
-                    <p className="font-medium text-rose-950">{alerta.alerta}</p>
-                    <p className="mt-2 text-xs font-semibold text-rose-700">
-                      Nivel {alerta.nivel} · {alerta.dato_base}
-                    </p>
-                    <p className="mt-3 text-sm leading-relaxed text-rose-900">
-                      {alerta.accion_recomendada}
-                    </p>
-                  </div>
-                ))}
+            <SectionCard number={9} title="Recomendación principal" icon={ShieldCheck} className="border-slate-900 bg-slate-950 text-white">
+              <div className="max-w-5xl">
+                <h3 className="text-2xl font-semibold text-white">
+                  {report.recomendacion_principal.titulo}
+                </h3>
+                <p className="mt-4 text-sm leading-relaxed text-slate-200">
+                  {report.recomendacion_principal.recomendacion}
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-300">
+                  {report.recomendacion_principal.razon}
+                </p>
+                <div className="mt-5 rounded-lg border border-white/10 bg-white/10 p-4 text-sm font-medium text-white">
+                  {report.recomendacion_principal.decision_sugerida}
+                </div>
               </div>
-            </div>
-          )}
-
-          <div className="rounded-lg border border-slate-900 bg-slate-950 p-6 text-white">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-              Recomendación principal
-            </p>
-            <h3 className="mt-2 text-xl font-semibold">
-              {report.recomendacion_principal.titulo}
-            </h3>
-            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-200">
-              {report.recomendacion_principal.recomendacion}
-            </p>
-            <p className="mt-4 text-sm leading-relaxed text-slate-300">
-              {report.recomendacion_principal.razon}
-            </p>
-            <div className="mt-5 rounded-lg border border-white/10 bg-white/10 p-4 text-sm text-white">
-              {report.recomendacion_principal.decision_sugerida}
-            </div>
+            </SectionCard>
           </div>
         </CardContent>
       </Card>
