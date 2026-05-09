@@ -9,7 +9,7 @@ import {
   MissingAnthropicApiKeyError,
 } from './errors';
 
-const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
 
 let cachedClient: Anthropic | null = null;
 

@@ -175,6 +175,8 @@ async function readErrorPayload(response: Response): Promise<{
   errorCode?: string;
   errorStage?: string;
 }> {
+  const nonJsonMessage = `El servidor devolvio una respuesta no JSON (HTTP ${response.status}).`;
+
   try {
     const data: unknown = await response.json();
     if (!isErrorPayload(data)) return {};
@@ -185,7 +187,7 @@ async function readErrorPayload(response: Response): Promise<{
       errorStage: typeof data.error_stage === 'string' ? data.error_stage : undefined,
     };
   } catch {
-    return {};
+    return { message: nonJsonMessage };
   }
 }
 
