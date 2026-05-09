@@ -45,11 +45,31 @@ interface GenerateUiResponse {
   error?: string;
 }
 
+interface PeriodOption {
+  periodId: string;
+  label: string;
+}
+
 const rules = [
   { label: 'Solo meses cerrados', icon: CalendarCheck },
   { label: 'No regenerable', icon: FileLock2 },
   { label: 'Reporte bloqueado al generarse', icon: Lock },
   { label: 'Sin YTD en V1', icon: Info },
+] as const;
+
+const monthNumberToName = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ] as const;
 
 const monthNameToNumber: Record<string, string> = {
@@ -69,6 +89,7 @@ const monthNameToNumber: Record<string, string> = {
 
 // Mock visual desactivado por defecto. No activar en produccion.
 const showMockReport = false;
+const CLOSED_MONTH_OPTIONS_COUNT = 12;
 
 function normalizeText(value: string): string {
   return value
@@ -86,6 +107,55 @@ function monthLabelToPeriodId(label: string): string | null {
   if (!month) return null;
 
   return `${match[2]}-${month}`;
+}
+
+function isClosedPeriodId(periodId: string, now: Date = new Date()): boolean {
+  const match = periodId.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return false;
+  }
+
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  return year < currentYear || (year === currentYear && month < currentMonth);
+}
+
+function periodIdToMonthLabel(periodId: string): string {
+  const [yearValue, monthValue] = periodId.split('-');
+  const monthIndex = Number(monthValue) - 1;
+  return `${monthNumberToName[monthIndex] ?? 'Mes'} ${yearValue}`;
+}
+
+function getLastClosedMonth(now: Date = new Date()): { year: number; month: number } {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  if (currentMonth === 1) {
+    return { year: currentYear - 1, month: 12 };
+  }
+
+  return { year: currentYear, month: currentMonth - 1 };
+}
+
+function buildClosedMonthOptions(count = CLOSED_MONTH_OPTIONS_COUNT): PeriodOption[] {
+  const lastClosed = getLastClosedMonth();
+  const lastClosedMonthIndex = lastClosed.year * 12 + (lastClosed.month - 1);
+
+  return Array.from({ length: count }, (_, index) => {
+    const absoluteMonthIndex = lastClosedMonthIndex - index;
+    const year = Math.floor(absoluteMonthIndex / 12);
+    const month = (absoluteMonthIndex % 12) + 1;
+    const periodId = `${year}-${String(month).padStart(2, '0')}`;
+
+    return {
+      periodId,
+      label: periodIdToMonthLabel(periodId),
+    };
+  });
 }
 
 function isFinancialReport(value: unknown): value is FinancialReport {
@@ -124,12 +194,29 @@ export function FinancialAIAnalysisTab({
   isYtdSelected,
   isClosedMonth,
 }: FinancialAIAnalysisTabProps) {
-  const periodId = useMemo(() => monthLabelToPeriodId(selectedMonthLabel), [selectedMonthLabel]);
-  const canLoadSavedReport = !isYtdSelected && isClosedMonth && Boolean(periodId);
+  const globalPeriodId = useMemo(() => monthLabelToPeriodId(selectedMonthLabel), [selectedMonthLabel]);
+  const periodOptions = useMemo(() => buildClosedMonthOptions(), []);
+  const defaultPeriodId = useMemo(() => {
+    if (globalPeriodId && !isYtdSelected && isClosedMonth && isClosedPeriodId(globalPeriodId)) {
+      return globalPeriodId;
+    }
+
+    return periodOptions[0]?.periodId ?? '';
+  }, [globalPeriodId, isClosedMonth, isYtdSelected, periodOptions]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState(defaultPeriodId);
   const [reportState, setReportState] = useState<ReportLoadState>({ status: 'idle' });
+  const selectedPeriodLabel = useMemo(
+    () =>
+      periodOptions.find((option) => option.periodId === selectedPeriodId)?.label ??
+      periodIdToMonthLabel(selectedPeriodId),
+    [periodOptions, selectedPeriodId],
+  );
+  const selectedPeriodIsClosed = isClosedPeriodId(selectedPeriodId);
+  const canLoadSavedReport = selectedPeriodIsClosed && Boolean(selectedPeriodId);
+  const periodId = selectedPeriodId;
 
   const blockedMessage = isYtdSelected
-    ? 'Financial AI V1 no usa YTD. Selecciona un mes cerrado.'
+    ? 'Financial AI V1 no usa YTD. Usa el selector local para elegir un mes cerrado.'
     : 'Selecciona un mes cerrado para generar el analisis.';
   const shouldShowMockReport = showMockReport;
   const shouldShowDemoPeriodNote = shouldShowMockReport && !canLoadSavedReport;
@@ -190,7 +277,7 @@ export function FinancialAIAnalysisTab({
     if (!canLoadSavedReport || !periodId || reportState.status === 'generating') return;
 
     const confirmed = window.confirm(
-      `Generar el reporte Financial AI para ${selectedMonthLabel}? ` +
+      `Generar el reporte Financial AI para ${selectedPeriodLabel}? ` +
         'Si se genera correctamente, quedara bloqueado y no podra regenerarse.',
     );
     if (!confirmed) return;
@@ -254,8 +341,26 @@ export function FinancialAIAnalysisTab({
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
-          Periodo: <span className="font-semibold text-gray-800">{selectedMonthLabel}</span>
+        <div className="min-w-[220px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600">
+          <label htmlFor="financial-ai-period" className="mb-1 block text-xs font-medium text-gray-500">
+            Periodo Financial AI
+          </label>
+          <select
+            id="financial-ai-period"
+            value={selectedPeriodId}
+            onChange={(event) => setSelectedPeriodId(event.target.value)}
+            disabled={reportState.status === 'generating'}
+            className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+          >
+            {periodOptions.map((option) => (
+              <option key={option.periodId} value={option.periodId}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-400">
+            Selector independiente del periodo global.
+          </p>
         </div>
       </div>
 
@@ -269,14 +374,14 @@ export function FinancialAIAnalysisTab({
           )}
           <FinancialAIReportView
             report={mockFinancialAIReport}
-            selectedMonthLabel={selectedMonthLabel}
+            selectedMonthLabel={selectedPeriodLabel}
             isDemo
           />
         </div>
       ) : canLoadSavedReport && reportState.status === 'loaded' && reportState.period === periodId ? (
         <FinancialAIReportView
           report={reportState.report}
-          selectedMonthLabel={selectedMonthLabel}
+          selectedMonthLabel={selectedPeriodLabel}
         />
       ) : (
         <Card className="overflow-hidden border-slate-200 bg-white">
@@ -300,7 +405,7 @@ export function FinancialAIAnalysisTab({
             </div>
             <p className="mt-3 text-xs text-gray-500">
               {canGenerateReport
-                ? 'La generacion requiere confirmacion y bloqueara el reporte mensual.'
+                ? `La generacion de ${selectedPeriodLabel} requiere confirmacion y bloqueara el reporte mensual.`
                 : 'Generacion disponible solo para meses cerrados sin reporte guardado.'}
             </p>
           </CardHeader>
