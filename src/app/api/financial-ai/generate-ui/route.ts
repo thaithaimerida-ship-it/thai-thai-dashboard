@@ -102,7 +102,12 @@ function toStatusError(error: unknown, periodId: string) {
     return jsonError(error.message, 422, 'INSUFFICIENT_FINANCIAL_DATA', periodId);
   }
   if (error instanceof MissingAnthropicApiKeyError) {
-    return jsonError('Falta configurar ANTHROPIC_API_KEY', 500, 'ANTHROPIC_MISSING_KEY', periodId);
+    return jsonError(
+      'Falta configurar la API key de Anthropic',
+      500,
+      'ANTHROPIC_MISSING_KEY',
+      periodId,
+    );
   }
   if (error instanceof AnthropicTimeoutError) {
     return jsonError(error.message, 504, 'ANTHROPIC_TIMEOUT', periodId);
