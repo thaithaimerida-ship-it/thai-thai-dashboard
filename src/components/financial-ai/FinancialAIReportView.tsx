@@ -43,6 +43,18 @@ function formatPercent(value: number) {
   return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 }).format(value)}%`;
 }
 
+function formatNullablePercent(value: number | null) {
+  return value === null ? 'No disponible' : formatPercent(value);
+}
+
+function formatNullableCurrency(value: number | null) {
+  return value === null ? 'No disponible' : formatCurrency(value);
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(value);
+}
+
 function statusTone(status: SemaforoEstado) {
   if (status === 'verde') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (status === 'amarillo') return 'border-amber-200 bg-amber-50 text-amber-700';
@@ -117,6 +129,24 @@ function SectionCard({
 
 function normalizeLabel(value: string) {
   return value.replaceAll('_', ' ');
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-slate-950">{value}</p>
+      {detail && <p className="mt-2 text-xs leading-relaxed text-slate-500">{detail}</p>}
+    </div>
+  );
 }
 
 export function FinancialAIReportView({
@@ -196,6 +226,151 @@ export function FinancialAIReportView({
               <p className="max-w-5xl text-base leading-7 text-slate-700">
                 {report.resumen_ejecutivo}
               </p>
+            </SectionCard>
+
+            <SectionCard
+              number={2}
+              title="Resumen financiero"
+              icon={BarChart3}
+              description="KPIs duros calculados por codigo desde Ingresos_BD y objetivos aprobados."
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Ingresos netos financieros"
+                  value={formatCurrency(report.resumen_financiero.ingresos_netos_financieros)}
+                  detail="Fuente: Ingresos_BD.Monto Neto (Calculo)"
+                />
+                <MetricCard
+                  label="Meta mensual"
+                  value={formatCurrency(report.resumen_financiero.meta_ventas_netas)}
+                  detail={`${formatNullablePercent(report.resumen_financiero.cumplimiento_meta_pct)} de cumplimiento`}
+                />
+                <MetricCard
+                  label="Punto de equilibrio"
+                  value={formatCurrency(report.resumen_financiero.punto_equilibrio)}
+                  detail={`${formatNullablePercent(report.resumen_financiero.cumplimiento_pe_pct)} de cumplimiento`}
+                />
+                <MetricCard
+                  label="Brecha vs meta"
+                  value={formatCurrency(report.resumen_financiero.diferencia_vs_meta)}
+                  detail={`Brecha vs PE: ${formatCurrency(report.resumen_financiero.diferencia_vs_punto_equilibrio)}`}
+                />
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              number={3}
+              title="Rentabilidad"
+              icon={ShieldCheck}
+              description="Indicadores calculados con ventas netas financieras como denominador."
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Food Cost"
+                  value={formatNullablePercent(report.rentabilidad.food_cost_pct)}
+                  detail={formatCurrency(report.rentabilidad.food_cost_monto)}
+                />
+                <MetricCard
+                  label="Labor Cost"
+                  value={formatNullablePercent(report.rentabilidad.labor_pct)}
+                  detail={formatCurrency(report.rentabilidad.labor_monto)}
+                />
+                <MetricCard
+                  label="Costo Primo"
+                  value={formatNullablePercent(report.rentabilidad.costo_primo_pct)}
+                  detail={formatCurrency(report.rentabilidad.costo_primo_monto)}
+                />
+                <MetricCard
+                  label="Cash Yield"
+                  value={formatNullablePercent(report.rentabilidad.cash_yield_pct)}
+                  detail={`Utilidad neta: ${formatNullableCurrency(report.rentabilidad.utilidad_neta)}`}
+                />
+              </div>
+              {report.rentabilidad.datos_no_disponibles.length > 0 && (
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  Datos no disponibles: {report.rentabilidad.datos_no_disponibles.join(', ')}
+                </div>
+              )}
+            </SectionCard>
+
+            <SectionCard
+              number={4}
+              title="Caja operativa"
+              icon={TrendingUp}
+              description="Lectura de Cortes_de_Caja para caja, impuestos, comensales y metodos de pago."
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <MetricCard
+                  label="Venta con impuesto"
+                  value={formatCurrency(report.caja_operativa.venta_con_impuesto)}
+                />
+                <MetricCard
+                  label="Impuesto total"
+                  value={formatCurrency(report.caja_operativa.impuesto_total)}
+                />
+                <MetricCard
+                  label="Venta neta caja"
+                  value={formatCurrency(report.caja_operativa.venta_neta_caja)}
+                />
+                <MetricCard
+                  label="Comensales"
+                  value={formatNumber(report.caja_operativa.comensales)}
+                />
+                <MetricCard
+                  label="Ticket promedio"
+                  value={
+                    report.caja_operativa.ticket_promedio === null
+                      ? 'No disponible'
+                      : formatCurrency(report.caja_operativa.ticket_promedio)
+                  }
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+                {Object.entries(report.caja_operativa.metodos_pago).map(([metodo, monto]) => (
+                  <div key={metodo} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {metodo}
+                    </p>
+                    <p className="mt-2 font-semibold text-slate-950">{formatCurrency(monto)}</p>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              number={5}
+              title="Comisiones por canal"
+              icon={TrendingUp}
+              description="Canales comerciales desde Ingresos_BD.Fuente / Cliente."
+            >
+              <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] text-left text-sm">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                        <th className="px-4 py-3 font-semibold">Canal</th>
+                        <th className="px-4 py-3 font-semibold">Bruto</th>
+                        <th className="px-4 py-3 font-semibold">Comision</th>
+                        <th className="px-4 py-3 font-semibold">Neto</th>
+                        <th className="px-4 py-3 font-semibold">% comision</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.comisiones_canales.map((canal) => (
+                        <tr key={canal.canal} className="border-b border-slate-100 last:border-0">
+                          <td className="px-4 py-3 font-medium text-slate-900">{canal.canal}</td>
+                          <td className="px-4 py-3 text-slate-600">{formatCurrency(canal.bruto)}</td>
+                          <td className="px-4 py-3 text-slate-600">{formatCurrency(canal.comision)}</td>
+                          <td className="px-4 py-3 font-semibold text-slate-950">{formatCurrency(canal.neto)}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {formatNullablePercent(canal.porcentaje_comision)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </SectionCard>
 
             <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.65fr]">

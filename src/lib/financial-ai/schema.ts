@@ -44,6 +44,47 @@ export const SemaforoKpiSchema = z.object({
   lectura: z.string().min(1),
 });
 
+export const ResumenFinancieroSchema = z.object({
+  ingresos_brutos_financieros: z.number(),
+  comisiones_totales: z.number(),
+  ingresos_netos_financieros: z.number(),
+  meta_ventas_netas: z.number(),
+  punto_equilibrio: z.number(),
+  diferencia_vs_meta: z.number(),
+  diferencia_vs_punto_equilibrio: z.number(),
+  cumplimiento_meta_pct: z.number().nullable(),
+  cumplimiento_pe_pct: z.number().nullable(),
+});
+
+export const RentabilidadSchema = z.object({
+  food_cost_monto: z.number(),
+  food_cost_pct: z.number().nullable(),
+  labor_monto: z.number(),
+  labor_pct: z.number().nullable(),
+  costo_primo_monto: z.number(),
+  costo_primo_pct: z.number().nullable(),
+  cash_yield_pct: z.number().nullable(),
+  utilidad_neta: z.number().nullable(),
+  datos_no_disponibles: z.array(z.string()),
+});
+
+export const CajaOperativaSchema = z.object({
+  venta_con_impuesto: z.number(),
+  impuesto_total: z.number(),
+  venta_neta_caja: z.number(),
+  comensales: z.number(),
+  ticket_promedio: z.number().nullable(),
+  metodos_pago: z.record(z.string(), z.number()),
+});
+
+export const ComisionCanalSchema = z.object({
+  canal: z.string().min(1),
+  bruto: z.number(),
+  comision: z.number(),
+  neto: z.number(),
+  porcentaje_comision: z.number().nullable(),
+});
+
 export const CanalFinancieroSchema = z.object({
   canal: z.string().min(1),
   bruto: z.number(),
@@ -118,6 +159,10 @@ export const RecomendacionPrincipalSchema = z.object({
 
 export const FinancialReportSchema = z.object({
   metadata: MetadataSchema,
+  resumen_financiero: ResumenFinancieroSchema,
+  rentabilidad: RentabilidadSchema,
+  caja_operativa: CajaOperativaSchema,
+  comisiones_canales: z.array(ComisionCanalSchema),
   resumen_ejecutivo: z.string().min(1),
   diagnostico_general: DiagnosticoGeneralSchema,
   kpis_ejecutivos: z.array(KpiEjecutivoSchema).min(1),

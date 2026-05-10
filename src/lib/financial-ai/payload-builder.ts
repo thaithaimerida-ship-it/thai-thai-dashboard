@@ -66,6 +66,37 @@ interface AggregatePayload extends ComparativoPayload {
   gastos_por_grupo_pl: Record<string, number>;
   food_cost_monto: number;
   labor_monto: number;
+  resumen_financiero: {
+    ingresos_brutos_financieros: number;
+    comisiones_totales: number;
+    ingresos_netos_financieros: number;
+    meta_ventas_netas: number;
+    punto_equilibrio: number;
+    diferencia_vs_meta: number;
+    diferencia_vs_punto_equilibrio: number;
+    cumplimiento_meta_pct: NullableNumber;
+    cumplimiento_pe_pct: NullableNumber;
+  };
+  rentabilidad: {
+    food_cost_monto: number;
+    food_cost_pct: NullableNumber;
+    labor_monto: number;
+    labor_pct: NullableNumber;
+    costo_primo_monto: number;
+    costo_primo_pct: NullableNumber;
+    cash_yield_pct: NullableNumber;
+    utilidad_neta: NullableNumber;
+    datos_no_disponibles: string[];
+  };
+  caja_operativa: {
+    venta_con_impuesto: number;
+    impuesto_total: number;
+    venta_neta_caja: number;
+    comensales: number;
+    ticket_promedio: NullableNumber;
+    metodos_pago: Record<string, number>;
+  };
+  comisiones_canales: CanalAgg[];
 }
 
 export interface FinancialAIPayload {
@@ -280,6 +311,10 @@ function pct(part: number, total: number): NullableNumber {
   return Math.round((part / total) * 10000) / 100;
 }
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 function ensureCanal(canales: Record<string, CanalAgg>, canal: string): CanalAgg {
   if (!canales[canal]) {
     canales[canal] = {
@@ -439,6 +474,7 @@ export function aggregateWindow(
   let gastos_totales = 0;
   let food_cost_monto = 0;
   let labor_monto = 0;
+  let impuestos_financiamientos = 0;
   const gastos_por_categoria: Record<string, number> = {};
   const gastos_por_grupo_pl: Record<string, number> = {};
 
@@ -459,6 +495,10 @@ export function aggregateWindow(
 
     sumRecord(gastos_por_categoria, categoria, Math.abs(total));
     sumRecord(gastos_por_grupo_pl, grupoPl, Math.abs(total));
+
+    if (categoriaNorm === 'impuestos sat' || categoriaNorm === 'prestamo bbva') {
+      impuestos_financiamientos += total;
+    }
 
     if (grupoNorm !== 'costo de venta' && grupoNorm !== 'gastos operativos') continue;
 
@@ -481,6 +521,61 @@ export function aggregateWindow(
 
   const food_cost_pct = pct(food_cost_monto, ingresos_netos);
   const labor_pct = pct(labor_monto, ingresos_netos);
+  const costo_primo_monto = food_cost_monto + labor_monto;
+  const costo_primo_pct =
+    food_cost_pct === null && labor_pct === null
+      ? null
+      : (food_cost_pct ?? 0) + (labor_pct ?? 0);
+  const utilidad_neta = ingresos_netos - gastos_totales - impuestos_financiamientos;
+  const cash_yield_pct = pct(utilidad_neta, ingresos_netos);
+  const ticket_promedio =
+    comensales > 0 ? Math.round((venta_con_impuesto / comensales) * 100) / 100 : null;
+  const rentabilidadDatosNoDisponibles: string[] = [];
+
+  if (sources.gastos.length === 0) {
+    rentabilidadDatosNoDisponibles.push('Gastos_BD');
+  }
+  if (cash_yield_pct === null) {
+    rentabilidadDatosNoDisponibles.push('cash_yield_pct');
+  }
+
+  const resumen_financiero = {
+    ingresos_brutos_financieros: roundMoney(ingresos_brutos),
+    comisiones_totales: roundMoney(comisiones),
+    ingresos_netos_financieros: roundMoney(ingresos_netos),
+    meta_ventas_netas: FINANCIAL_AI_TARGETS.VENTAS_OBJETIVO_MENSUAL_MXN,
+    punto_equilibrio: FINANCIAL_AI_TARGETS.PE_MENSUAL_MXN,
+    diferencia_vs_meta: roundMoney(
+      ingresos_netos - FINANCIAL_AI_TARGETS.VENTAS_OBJETIVO_MENSUAL_MXN,
+    ),
+    diferencia_vs_punto_equilibrio: roundMoney(
+      ingresos_netos - FINANCIAL_AI_TARGETS.PE_MENSUAL_MXN,
+    ),
+    cumplimiento_meta_pct: pct(
+      ingresos_netos,
+      FINANCIAL_AI_TARGETS.VENTAS_OBJETIVO_MENSUAL_MXN,
+    ),
+    cumplimiento_pe_pct: pct(ingresos_netos, FINANCIAL_AI_TARGETS.PE_MENSUAL_MXN),
+  };
+  const rentabilidad = {
+    food_cost_monto: roundMoney(food_cost_monto),
+    food_cost_pct,
+    labor_monto: roundMoney(labor_monto),
+    labor_pct,
+    costo_primo_monto: roundMoney(costo_primo_monto),
+    costo_primo_pct,
+    cash_yield_pct,
+    utilidad_neta: roundMoney(utilidad_neta),
+    datos_no_disponibles: rentabilidadDatosNoDisponibles,
+  };
+  const caja_operativa = {
+    venta_con_impuesto: roundMoney(venta_con_impuesto),
+    impuesto_total: roundMoney(impuesto_total),
+    venta_neta_caja: roundMoney(venta_neta_caja),
+    comensales,
+    ticket_promedio,
+    metodos_pago: ventas_por_metodo_pago,
+  };
 
   return {
     periodo_anterior: window.label,
@@ -499,13 +594,13 @@ export function aggregateWindow(
     food_cost_pct,
     labor_monto,
     labor_pct,
-    costo_primo_pct:
-      food_cost_pct === null && labor_pct === null
-        ? null
-        : (food_cost_pct ?? 0) + (labor_pct ?? 0),
+    costo_primo_pct,
     comensales,
-    ticket_promedio:
-      comensales > 0 ? Math.round((venta_con_impuesto / comensales) * 100) / 100 : null,
+    ticket_promedio,
+    resumen_financiero,
+    rentabilidad,
+    caja_operativa,
+    comisiones_canales: ingresos_por_canal,
   };
 }
 
