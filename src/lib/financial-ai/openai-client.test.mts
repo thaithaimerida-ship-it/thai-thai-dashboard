@@ -1,6 +1,21 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, mock, test } from 'bun:test';
 
 mock.module('server-only', () => ({}));
+
+const originalOpenAIApiKey = process.env.OPENAI_API_KEY;
+
+function restoreEnvValue(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+
+  process.env[key] = value;
+}
+
+afterEach(() => {
+  restoreEnvValue('OPENAI_API_KEY', originalOpenAIApiKey);
+});
 
 const parsedReport = {
   metadata: {
@@ -114,5 +129,75 @@ describe('OpenAI Financial AI client', () => {
         },
       },
     });
+  });
+
+  test('throws OPENAI_MISSING_KEY before creating a real OpenAI request', async () => {
+    delete process.env.OPENAI_API_KEY;
+
+    const {
+      requestOpenAIFinancialAIAnalysis,
+    } = await import('./openai-client');
+    const { MissingOpenAIApiKeyError } = await import('./errors');
+
+    await expect(
+      requestOpenAIFinancialAIAnalysis({
+        system: 'system prompt',
+        prompt: 'user prompt',
+      }),
+    ).rejects.toBeInstanceOf(MissingOpenAIApiKeyError);
+  });
+
+  test('maps an aborted OpenAI request to OPENAI_TIMEOUT', async () => {
+    const {
+      requestOpenAIFinancialAIAnalysis,
+    } = await import('./openai-client');
+    const { OpenAITimeoutError } = await import('./errors');
+
+    const client = {
+      responses: {
+        parse: async (_request: unknown, options?: { signal?: AbortSignal }) =>
+          new Promise<never>((_resolve, reject) => {
+            options?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          }),
+      },
+    };
+
+    await expect(
+      requestOpenAIFinancialAIAnalysis(
+        {
+          system: 'system prompt',
+          prompt: 'user prompt',
+          timeoutMs: 1,
+        },
+        client,
+      ),
+    ).rejects.toBeInstanceOf(OpenAITimeoutError);
+  });
+
+  test('maps SDK request failures to OPENAI_REQUEST_ERROR', async () => {
+    const {
+      requestOpenAIFinancialAIAnalysis,
+    } = await import('./openai-client');
+    const { OpenAIRequestError } = await import('./errors');
+
+    const client = {
+      responses: {
+        parse: async () => {
+          throw new Error('SDK request failed');
+        },
+      },
+    };
+
+    await expect(
+      requestOpenAIFinancialAIAnalysis(
+        {
+          system: 'system prompt',
+          prompt: 'user prompt',
+        },
+        client,
+      ),
+    ).rejects.toBeInstanceOf(OpenAIRequestError);
   });
 });

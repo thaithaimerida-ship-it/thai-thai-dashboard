@@ -38,6 +38,14 @@ describe('Financial AI provider selection', () => {
     expect(getFinancialAIProvider()).toBe('openai');
   });
 
+  test('rejects an invalid FINANCIAL_AI_PROVIDER without falling back', async () => {
+    process.env.FINANCIAL_AI_PROVIDER = 'invalid-provider';
+
+    const { getFinancialAIProvider } = await import('./provider');
+
+    expect(() => getFinancialAIProvider()).toThrow('FINANCIAL_AI_PROVIDER invalido');
+  });
+
   test('uses OPENAI_FINANCIAL_AI_MODEL when OpenAI is selected', async () => {
     process.env.FINANCIAL_AI_PROVIDER = 'openai';
     process.env.OPENAI_FINANCIAL_AI_MODEL = 'confirmed-openai-model';
