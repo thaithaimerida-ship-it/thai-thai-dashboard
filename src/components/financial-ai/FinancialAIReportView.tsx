@@ -140,6 +140,10 @@ function getPaymentMethodItems(report: FinancialReport) {
   ] as const;
 }
 
+function getCommissionTotal(report: FinancialReport) {
+  return report.comisiones_canales.reduce((total, canal) => total + canal.comision, 0);
+}
+
 function MetricCard({
   label,
   value,
@@ -163,6 +167,10 @@ export function FinancialAIReportView({
   selectedMonthLabel,
   isDemo = false,
 }: FinancialAIReportViewProps) {
+  const metaGapLabel =
+    report.resumen_financiero.diferencia_vs_meta > 0 ? 'Superávit vs meta' : 'Brecha vs meta';
+  const commissionTotal = getCommissionTotal(report);
+
   return (
     <div className="space-y-6">
       {isDemo && (
@@ -260,7 +268,7 @@ export function FinancialAIReportView({
                   detail={`${formatNullablePercent(report.resumen_financiero.cumplimiento_pe_pct)} de cumplimiento`}
                 />
                 <MetricCard
-                  label="Brecha vs meta"
+                  label={metaGapLabel}
                   value={formatCurrency(report.resumen_financiero.diferencia_vs_meta)}
                   detail={`Brecha vs PE: ${formatCurrency(report.resumen_financiero.diferencia_vs_punto_equilibrio)}`}
                 />
@@ -504,6 +512,15 @@ export function FinancialAIReportView({
                             <td className="px-4 py-3 text-slate-600">{formatPercent(canal.porcentaje_comision)}</td>
                           </tr>
                         ))}
+                        <tr className="border-t border-slate-200 bg-slate-50">
+                          <td className="px-4 py-3 font-semibold text-slate-950">Total comisiones</td>
+                          <td className="px-4 py-3 text-slate-500">-</td>
+                          <td className="px-4 py-3 font-semibold text-slate-950">
+                            {formatCurrency(commissionTotal)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">-</td>
+                          <td className="px-4 py-3 text-slate-500">-</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
