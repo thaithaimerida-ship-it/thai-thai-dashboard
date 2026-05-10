@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, CalendarCheck, FileLock2, Info, Lock, Sparkles } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { FinancialReport } from '@/lib/financial-ai/schema';
+import { FinancialReportSchema, type FinancialReport } from '@/lib/financial-ai/schema';
 import { cn } from '@/lib/utils';
 import { FinancialAIReportView } from './FinancialAIReportView';
 import { mockFinancialAIReport } from './mockFinancialAIReport';
@@ -171,7 +171,7 @@ function buildClosedMonthOptions(count = CLOSED_MONTH_OPTIONS_COUNT): PeriodOpti
 }
 
 function isFinancialReport(value: unknown): value is FinancialReport {
-  return Boolean(value && typeof value === 'object' && 'metadata' in value);
+  return FinancialReportSchema.safeParse(value).success;
 }
 
 function isErrorPayload(
