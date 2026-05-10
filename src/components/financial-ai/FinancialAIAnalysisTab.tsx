@@ -23,7 +23,17 @@ type ReportLoadState =
   | { status: 'loaded'; period: string; report: FinancialReport }
   | { status: 'unauthorized' }
   | { status: 'parse-error' }
-  | { status: 'error'; message?: string; errorCode?: string; errorStage?: string; title?: string };
+  | {
+      status: 'error';
+      message?: string;
+      errorCode?: string;
+      errorStage?: string;
+      openai_status?: number;
+      openai_type?: string;
+      openai_code?: string;
+      openai_message?: string;
+      title?: string;
+    };
 
 interface UiReportResponse {
   exists: boolean;
@@ -166,7 +176,15 @@ function isFinancialReport(value: unknown): value is FinancialReport {
 
 function isErrorPayload(
   value: unknown,
-): value is { error?: unknown; error_code?: unknown; error_stage?: unknown } {
+): value is {
+  error?: unknown;
+  error_code?: unknown;
+  error_stage?: unknown;
+  openai_status?: unknown;
+  openai_type?: unknown;
+  openai_code?: unknown;
+  openai_message?: unknown;
+} {
   return Boolean(value && typeof value === 'object' && 'error' in value);
 }
 
@@ -174,6 +192,10 @@ async function readErrorPayload(response: Response): Promise<{
   message?: string;
   errorCode?: string;
   errorStage?: string;
+  openai_status?: number;
+  openai_type?: string;
+  openai_code?: string;
+  openai_message?: string;
 }> {
   const nonJsonMessage = `El servidor devolvio una respuesta no JSON (HTTP ${response.status}).`;
 
@@ -185,6 +207,10 @@ async function readErrorPayload(response: Response): Promise<{
       message: typeof data.error === 'string' ? data.error : undefined,
       errorCode: typeof data.error_code === 'string' ? data.error_code : undefined,
       errorStage: typeof data.error_stage === 'string' ? data.error_stage : undefined,
+      openai_status: typeof data.openai_status === 'number' ? data.openai_status : undefined,
+      openai_type: typeof data.openai_type === 'string' ? data.openai_type : undefined,
+      openai_code: typeof data.openai_code === 'string' ? data.openai_code : undefined,
+      openai_message: typeof data.openai_message === 'string' ? data.openai_message : undefined,
     };
   } catch {
     return { message: nonJsonMessage };
@@ -282,6 +308,10 @@ export function FinancialAIAnalysisTab({
             message: errorPayload.message,
             errorCode: errorPayload.errorCode,
             errorStage: errorPayload.errorStage,
+            openai_status: errorPayload.openai_status,
+            openai_type: errorPayload.openai_type,
+            openai_code: errorPayload.openai_code,
+            openai_message: errorPayload.openai_message,
           });
           return;
         }
@@ -347,6 +377,10 @@ export function FinancialAIAnalysisTab({
           message: errorPayload.message || 'No se pudo generar el reporte Financial AI.',
           errorCode: errorPayload.errorCode,
           errorStage: errorPayload.errorStage,
+          openai_status: errorPayload.openai_status,
+          openai_type: errorPayload.openai_type,
+          openai_code: errorPayload.openai_code,
+          openai_message: errorPayload.openai_message,
         });
         return;
       }
@@ -457,6 +491,26 @@ export function FinancialAIAnalysisTab({
                     {reportState.errorStage && (
                       <p className="mt-1 text-xs font-medium uppercase tracking-wide text-red-700">
                         Etapa: {reportState.errorStage}
+                      </p>
+                    )}
+                    {reportState.openai_status !== undefined && (
+                      <p className="mt-1 text-xs text-red-700">
+                        OpenAI status: {reportState.openai_status}
+                      </p>
+                    )}
+                    {reportState.openai_type && (
+                      <p className="mt-1 text-xs text-red-700">
+                        OpenAI type: {reportState.openai_type}
+                      </p>
+                    )}
+                    {reportState.openai_code && (
+                      <p className="mt-1 text-xs text-red-700">
+                        OpenAI code: {reportState.openai_code}
+                      </p>
+                    )}
+                    {reportState.openai_message && (
+                      <p className="mt-1 text-xs text-red-700">
+                        OpenAI message: {reportState.openai_message}
                       </p>
                     )}
                   </div>
