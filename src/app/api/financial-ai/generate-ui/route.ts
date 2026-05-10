@@ -16,6 +16,7 @@ import {
   OpenAIInvalidResponseError,
   OpenAIRequestError,
   OpenAITimeoutError,
+  type OpenAIErrorDetails,
 } from '@/lib/financial-ai/errors';
 import {
   generateFinancialAIReport,
@@ -44,6 +45,11 @@ type GenerateErrorCode =
   | 'ANTHROPIC_TIMEOUT'
   | 'ANTHROPIC_REQUEST_ERROR'
   | 'OPENAI_MISSING_KEY'
+  | 'OPENAI_MODEL_NOT_AVAILABLE'
+  | 'OPENAI_AUTH_ERROR'
+  | 'OPENAI_RATE_LIMIT'
+  | 'OPENAI_QUOTA_ERROR'
+  | 'OPENAI_SCHEMA_ERROR'
   | 'OPENAI_TIMEOUT'
   | 'OPENAI_REQUEST_ERROR'
   | 'OPENAI_INVALID_RESPONSE'
@@ -60,6 +66,13 @@ type GenerateErrorStage =
   | 'PAYLOAD_OR_AI_GENERATION'
   | 'REPORT_APPEND'
   | 'UNKNOWN';
+
+interface GenerateErrorMetadata {
+  openai_status?: number;
+  openai_type?: string;
+  openai_code?: string;
+  openai_message?: string;
+}
 
 function getCookieValue(cookieHeader: string | null, name: string): string | undefined {
   if (!cookieHeader) return undefined;
@@ -93,6 +106,7 @@ function logGenerateError(
   errorCode: GenerateErrorCode,
   errorStage: GenerateErrorStage,
   message: string,
+  metadata: GenerateErrorMetadata = {},
 ) {
   console.error('[financial-ai/generate-ui]', {
     periodId: periodId || 'unknown',
@@ -100,6 +114,7 @@ function logGenerateError(
     error_code: errorCode,
     error_stage: errorStage,
     message,
+    ...metadata,
   });
 }
 
@@ -109,12 +124,38 @@ function jsonError(
   errorCode: GenerateErrorCode,
   errorStage: GenerateErrorStage,
   periodId = '',
+  metadata: GenerateErrorMetadata = {},
 ) {
-  logGenerateError(periodId, status, errorCode, errorStage, message);
+  logGenerateError(periodId, status, errorCode, errorStage, message, metadata);
   return NextResponse.json(
-    { error: message, error_code: errorCode, error_stage: errorStage },
+    { error: message, error_code: errorCode, error_stage: errorStage, ...metadata },
     { status },
   );
+}
+
+export function toOpenAIErrorPayload(error: OpenAIRequestError): GenerateErrorMetadata {
+  const details: OpenAIErrorDetails | undefined = error.openai;
+
+  return {
+    ...(typeof details?.status === 'number' ? { openai_status: details.status } : {}),
+    ...(details?.type ? { openai_type: details.type } : {}),
+    ...(details?.code ? { openai_code: details.code } : {}),
+    ...(details?.message ? { openai_message: details.message } : {}),
+  };
+}
+
+function toGenerateErrorCode(code: string): GenerateErrorCode {
+  switch (code) {
+    case 'OPENAI_MODEL_NOT_AVAILABLE':
+    case 'OPENAI_AUTH_ERROR':
+    case 'OPENAI_RATE_LIMIT':
+    case 'OPENAI_QUOTA_ERROR':
+    case 'OPENAI_SCHEMA_ERROR':
+    case 'OPENAI_REQUEST_ERROR':
+      return code;
+    default:
+      return 'OPENAI_REQUEST_ERROR';
+  }
 }
 
 function isGoogleSheetsError(error: unknown): boolean {
@@ -163,9 +204,10 @@ function toStatusError(error: unknown, periodId: string, errorStage: GenerateErr
     return jsonError(
       'Error al solicitar analisis financiero a OpenAI',
       502,
-      'OPENAI_REQUEST_ERROR',
+      toGenerateErrorCode(error.code),
       errorStage,
       periodId,
+      toOpenAIErrorPayload(error),
     );
   }
   if (error instanceof OpenAIInvalidResponseError) {

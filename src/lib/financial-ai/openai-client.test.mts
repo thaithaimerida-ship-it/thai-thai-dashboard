@@ -200,4 +200,71 @@ describe('OpenAI Financial AI client', () => {
       ),
     ).rejects.toBeInstanceOf(OpenAIRequestError);
   });
+
+  test('maps model access errors to OPENAI_MODEL_NOT_AVAILABLE with sanitized details', async () => {
+    const {
+      requestOpenAIFinancialAIAnalysis,
+    } = await import('./openai-client');
+
+    const client = {
+      responses: {
+        parse: async () => {
+          throw {
+            status: 404,
+            error: {
+              type: 'invalid_request_error',
+              code: 'model_not_found',
+              message: 'The model gpt-test does not exist or you do not have access.',
+            },
+          };
+        },
+      },
+    };
+
+    await expect(
+      requestOpenAIFinancialAIAnalysis(
+        {
+          system: 'system prompt',
+          prompt: 'user prompt',
+        },
+        client,
+      ),
+    ).rejects.toMatchObject({
+      code: 'OPENAI_MODEL_NOT_AVAILABLE',
+      openai: {
+        status: 404,
+        type: 'invalid_request_error',
+        code: 'model_not_found',
+        message: 'The model gpt-test does not exist or you do not have access.',
+      },
+    });
+  });
+
+  test('maps auth, quota, rate limit, and schema errors to specific OpenAI codes', async () => {
+    const {
+      classifyOpenAIErrorCode,
+      sanitizeOpenAIError,
+    } = await import('./openai-client');
+
+    expect(classifyOpenAIErrorCode(sanitizeOpenAIError({
+      status: 401,
+      error: { type: 'invalid_request_error', code: 'invalid_api_key' },
+    }))).toBe('OPENAI_AUTH_ERROR');
+    expect(classifyOpenAIErrorCode(sanitizeOpenAIError({
+      status: 429,
+      error: { type: 'insufficient_quota', code: 'insufficient_quota' },
+    }))).toBe('OPENAI_QUOTA_ERROR');
+    expect(classifyOpenAIErrorCode(sanitizeOpenAIError({
+      status: 429,
+      error: { type: 'rate_limit_error', code: 'rate_limit_exceeded' },
+    }))).toBe('OPENAI_RATE_LIMIT');
+    expect(classifyOpenAIErrorCode(sanitizeOpenAIError({
+      status: 400,
+      error: {
+        type: 'invalid_request_error',
+        code: 'invalid_json_schema',
+        message: 'Invalid schema for response format.',
+      },
+    }))).toBe('OPENAI_SCHEMA_ERROR');
+  });
 });

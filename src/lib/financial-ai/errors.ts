@@ -16,6 +16,21 @@ export class MissingAnthropicApiKeyError extends FinancialAIError {
   }
 }
 
+export interface OpenAIErrorDetails {
+  status?: number;
+  type?: string;
+  code?: string;
+  message?: string;
+}
+
+export type OpenAIGenerateErrorCode =
+  | 'OPENAI_MODEL_NOT_AVAILABLE'
+  | 'OPENAI_AUTH_ERROR'
+  | 'OPENAI_RATE_LIMIT'
+  | 'OPENAI_QUOTA_ERROR'
+  | 'OPENAI_SCHEMA_ERROR'
+  | 'OPENAI_REQUEST_ERROR';
+
 export class MissingOpenAIApiKeyError extends FinancialAIError {
   constructor() {
     super('Falta configurar OPENAI_API_KEY', 'OPENAI_MISSING_KEY');
@@ -31,8 +46,13 @@ export class AnthropicRequestError extends FinancialAIError {
 }
 
 export class OpenAIRequestError extends FinancialAIError {
-  constructor(message = 'Error al solicitar analisis financiero a OpenAI', cause?: unknown) {
-    super(message, 'OPENAI_REQUEST_ERROR', cause);
+  constructor(
+    message = 'Error al solicitar analisis financiero a OpenAI',
+    cause?: unknown,
+    public readonly openai?: OpenAIErrorDetails,
+    code: OpenAIGenerateErrorCode = 'OPENAI_REQUEST_ERROR',
+  ) {
+    super(message, code, cause);
     this.name = 'OpenAIRequestError';
   }
 }
