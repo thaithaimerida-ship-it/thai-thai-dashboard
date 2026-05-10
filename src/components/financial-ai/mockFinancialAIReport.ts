@@ -37,10 +37,10 @@ export const mockFinancialAIReport: FinancialReport = {
     comensales: 1621,
     ticket_promedio: 347.96,
     metodos_pago: {
-      Efectivo: 168000,
-      Tarjeta: 338000,
-      Otros: 18038,
-      'Propinas pagadas': 12450,
+      efectivo: 168000,
+      tarjeta: 338000,
+      otros: 18038,
+      propinas_pagadas: 12450,
     },
   },
   comisiones_canales: [

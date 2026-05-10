@@ -75,10 +75,10 @@ export function buildFinancialAIUserPrompt(payload: FinancialAIPayload): string 
           comensales: 0,
           ticket_promedio: 0,
           metodos_pago: {
-            Efectivo: 0,
-            Tarjeta: 0,
-            Otros: 0,
-            'Propinas pagadas': 0,
+            efectivo: 0,
+            tarjeta: 0,
+            otros: 0,
+            propinas_pagadas: 0,
           },
         },
         comisiones_canales: [

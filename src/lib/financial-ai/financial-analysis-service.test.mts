@@ -32,8 +32,10 @@ const deterministicBlocks = {
     comensales: 1000,
     ticket_promedio: 342.2,
     metodos_pago: {
-      Efectivo: 100_000,
-      Tarjeta: 200_000,
+      efectivo: 100_000,
+      tarjeta: 200_000,
+      otros: 0,
+      propinas_pagadas: 0,
     },
   },
   comisiones_canales: [
@@ -77,7 +79,10 @@ const wrongDeterministicBlocks = {
     comensales: 1,
     ticket_promedio: 1,
     metodos_pago: {
-      Falso: 1,
+      efectivo: 1,
+      tarjeta: 1,
+      otros: 1,
+      propinas_pagadas: 1,
     },
   },
   comisiones_canales: [

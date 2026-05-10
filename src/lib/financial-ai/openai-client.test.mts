@@ -129,6 +129,12 @@ describe('OpenAI Financial AI client', () => {
         },
       },
     });
+    const requestJson = JSON.stringify(capturedRequest);
+    expect(requestJson).not.toContain('"propertyNames"');
+    expect(requestJson).toContain('"efectivo"');
+    expect(requestJson).toContain('"tarjeta"');
+    expect(requestJson).toContain('"otros"');
+    expect(requestJson).toContain('"propinas_pagadas"');
   });
 
   test('throws OPENAI_MISSING_KEY before creating a real OpenAI request', async () => {

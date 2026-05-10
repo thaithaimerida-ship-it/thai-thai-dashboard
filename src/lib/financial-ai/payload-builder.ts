@@ -20,6 +20,8 @@ const FOOD_COST_LIMITACION =
 
 type SheetObject = Record<string, string>;
 type NullableNumber = number | null;
+type MetodoPagoKey = 'efectivo' | 'tarjeta' | 'otros' | 'propinas_pagadas';
+type MetodosPago = Record<MetodoPagoKey, number>;
 
 interface PeriodWindow {
   start: Date;
@@ -61,7 +63,7 @@ interface AggregatePayload extends ComparativoPayload {
   venta_con_impuesto: number;
   impuesto_total: number;
   venta_neta_caja: number;
-  ventas_por_metodo_pago: Record<string, number>;
+  ventas_por_metodo_pago: MetodosPago;
   gastos_por_categoria: Record<string, number>;
   gastos_por_grupo_pl: Record<string, number>;
   food_cost_monto: number;
@@ -94,7 +96,7 @@ interface AggregatePayload extends ComparativoPayload {
     venta_neta_caja: number;
     comensales: number;
     ticket_promedio: NullableNumber;
-    metodos_pago: Record<string, number>;
+    metodos_pago: MetodosPago;
   };
   comisiones_canales: CanalAgg[];
 }
@@ -329,13 +331,17 @@ function ensureCanal(canales: Record<string, CanalAgg>, canal: string): CanalAgg
   return canales[canal];
 }
 
-function addPaymentMethod(
-  target: Record<string, number>,
-  label: string,
-  amount: number,
-): void {
-  if (amount === 0) return;
-  target[label] = (target[label] ?? 0) + amount;
+function createMetodosPago(): MetodosPago {
+  return {
+    efectivo: 0,
+    tarjeta: 0,
+    otros: 0,
+    propinas_pagadas: 0,
+  };
+}
+
+function addPaymentMethod(target: MetodosPago, key: MetodoPagoKey, amount: number): void {
+  target[key] += amount;
 }
 
 function hasValidationColumn(row: SheetObject): boolean {
@@ -363,7 +369,7 @@ export function aggregateWindow(
   let venta_neta_caja = 0;
   let ingresos_netos = 0;
   let comensales = 0;
-  const ventas_por_metodo_pago: Record<string, number> = {};
+  const ventas_por_metodo_pago = createMetodosPago();
 
   if (sources.cortesCaja.length === 0) {
     datosNoDisponibles.add('Cortes_de_Caja');
@@ -389,12 +395,12 @@ export function aggregateWindow(
     impuesto_total += impuesto;
     if (Number.isFinite(parsedComensales)) comensales += parsedComensales;
 
-    addPaymentMethod(ventas_por_metodo_pago, 'Efectivo', parseMoney(getValue(row, ['Efectivo'])));
-    addPaymentMethod(ventas_por_metodo_pago, 'Tarjeta', parseMoney(getValue(row, ['Tarjeta'])));
-    addPaymentMethod(ventas_por_metodo_pago, 'Otros', parseMoney(getValue(row, ['Otros'])));
+    addPaymentMethod(ventas_por_metodo_pago, 'efectivo', parseMoney(getValue(row, ['Efectivo'])));
+    addPaymentMethod(ventas_por_metodo_pago, 'tarjeta', parseMoney(getValue(row, ['Tarjeta'])));
+    addPaymentMethod(ventas_por_metodo_pago, 'otros', parseMoney(getValue(row, ['Otros'])));
     addPaymentMethod(
       ventas_por_metodo_pago,
-      'Propinas pagadas',
+      'propinas_pagadas',
       parseMoney(getValue(row, ['Propinas Pagadas'])),
     );
 

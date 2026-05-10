@@ -104,10 +104,10 @@ describe('Financial AI deterministic KPI contract', () => {
       comensales: 1000,
       ticket_promedio: 342.2,
       metodos_pago: {
-        Efectivo: 100_000,
-        Tarjeta: 200_000,
-        Otros: 20_000,
-        'Propinas pagadas': 5_000,
+        efectivo: 100_000,
+        tarjeta: 200_000,
+        otros: 20_000,
+        propinas_pagadas: 5_000,
       },
     });
     expect(aggregate.comisiones_canales).toEqual([
