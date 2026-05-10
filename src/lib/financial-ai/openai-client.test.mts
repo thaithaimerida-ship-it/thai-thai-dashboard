@@ -116,7 +116,7 @@ describe('OpenAI Financial AI client', () => {
     expect(JSON.parse(responseText)).toEqual(parsedReport);
     expect(capturedRequest).toMatchObject({
       model: 'gpt-5.1',
-      max_output_tokens: 4096,
+      max_output_tokens: 6000,
       input: [
         { role: 'system', content: 'system prompt' },
         { role: 'user', content: 'user prompt' },

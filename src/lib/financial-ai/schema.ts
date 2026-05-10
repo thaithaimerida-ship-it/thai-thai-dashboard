@@ -123,13 +123,13 @@ export const FinancialReportSchema = z.object({
   kpis_ejecutivos: z.array(KpiEjecutivoSchema).min(1),
   semaforo_kpis: z.array(SemaforoKpiSchema).min(1),
   analisis_canales: AnalisisCanalesSchema,
-  hallazgos_confirmados: z.array(HallazgoConfirmadoSchema),
-  hipotesis_operativas: z.array(HipotesisOperativaSchema),
+  hallazgos_confirmados: z.array(HallazgoConfirmadoSchema).max(3),
+  hipotesis_operativas: z.array(HipotesisOperativaSchema).max(3),
   ingenieria_menu: IngenieriaMenuSchema,
   comparativo: ComparativoSchema,
-  areas_oportunidad: z.array(AreaOportunidadSchema),
-  alertas_riesgo: z.array(AlertaRiesgoSchema),
-  acciones_sugeridas: z.array(AccionSugeridaSchema),
+  areas_oportunidad: z.array(AreaOportunidadSchema).max(3),
+  alertas_riesgo: z.array(AlertaRiesgoSchema).max(3),
+  acciones_sugeridas: z.array(AccionSugeridaSchema).max(3),
   recomendacion_principal: RecomendacionPrincipalSchema,
 });
 

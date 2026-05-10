@@ -8,9 +8,11 @@ export { FINANCIAL_AI_PROMPT_VERSION };
 export function buildFinancialAISystemPrompt(): string {
   return [
     'Eres un analista financiero senior para un restaurante.',
+    'Financial AI V1 es un reporte ejecutivo corto, breve, accionable y sin estilo ensayo.',
     'Debes responder exclusivamente con JSON valido que cumpla el contrato solicitado.',
     'Devuelve exclusivamente JSON valido. Sin Markdown. Sin ```json. Sin texto antes o despues.',
     'No uses Markdown, fences, comentarios, texto introductorio ni texto fuera del JSON.',
+    'Prioriza claridad ejecutiva sobre extension; evita parrafos largos y repeticiones.',
     'No inventes causas operativas.',
     'hallazgos_confirmados solo puede contener afirmaciones soportadas por datos cuantificados del payload.',
     'hipotesis_operativas debe contener explicaciones posibles no confirmadas y como validarlas.',
@@ -31,7 +33,7 @@ export function buildFinancialAIUserPrompt(payload: FinancialAIPayload): string 
   return [
     `Version del prompt: ${FINANCIAL_AI_PROMPT_VERSION}`,
     '',
-    'Genera un reporte financiero IA para Thai Thai usando unicamente este payload.',
+    'Genera un reporte financiero IA ejecutivo corto para Thai Thai usando unicamente este payload.',
     '',
     'Contrato JSON obligatorio:',
     JSON.stringify(
@@ -46,9 +48,9 @@ export function buildFinancialAIUserPrompt(payload: FinancialAIPayload): string 
         resumen_ejecutivo: 'Lectura ejecutiva breve del periodo.',
         diagnostico_general: {
           estado_mes: 'sano_con_alertas',
-          lectura: 'Lectura general basada en datos del payload.',
-          principal_riesgo: 'Riesgo principal soportado por datos.',
-          principal_oportunidad: 'Oportunidad principal soportada por datos.',
+          lectura: 'Lectura breve basada en datos del payload.',
+          principal_riesgo: 'Riesgo principal cuantificado.',
+          principal_oportunidad: 'Oportunidad principal cuantificada.',
         },
         kpis_ejecutivos: [
           {
@@ -150,6 +152,17 @@ export function buildFinancialAIUserPrompt(payload: FinancialAIPayload): string 
     'Reglas estrictas:',
     '- Responde solo el objeto JSON final.',
     '- Devuelve exclusivamente JSON valido. Sin Markdown. Sin ```json. Sin texto antes o despues.',
+    '- El reporte debe ser breve, ejecutivo y accionable; no escribas estilo ensayo.',
+    '- resumen_ejecutivo maximo 600 caracteres.',
+    '- recomendacion_principal.recomendacion maximo 500 caracteres.',
+    '- Cada explicacion, justificacion, impacto, descripcion, lectura, razon, oportunidad, alerta, accion o texto largo maximo 280 caracteres.',
+    '- hallazgos_confirmados maximo 3 items.',
+    '- hipotesis_operativas maximo 3 items.',
+    '- areas_oportunidad maximo 3 items.',
+    '- alertas_riesgo maximo 3 items.',
+    '- acciones_sugeridas maximo 3 items.',
+    '- No repitas los mismos datos en varias secciones.',
+    '- No narres KPIs que ya estan en tablas; interpreta solo lo indispensable.',
     '- No copies nombres de tipos como valores. Si el contrato indica number, devuelve un numero JSON real. Si indica boolean, devuelve true/false real. No uses strings como "number", "boolean", "true" o "false".',
     '- No uses null en campos donde el contrato pide string o number.',
     '- En analisis_canales.canales.porcentaje_comision usa 0 si el payload no tiene porcentaje disponible.',

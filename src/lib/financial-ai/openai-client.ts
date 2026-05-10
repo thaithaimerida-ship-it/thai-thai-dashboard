@@ -138,7 +138,7 @@ export async function requestOpenAIFinancialAIAnalysis(
   {
     system,
     prompt,
-    maxOutputTokens = 4096,
+    maxOutputTokens = 6000,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   }: RequestOpenAIFinancialAIAnalysisInput,
   client: OpenAIResponsesClient = getOpenAIClient(),
