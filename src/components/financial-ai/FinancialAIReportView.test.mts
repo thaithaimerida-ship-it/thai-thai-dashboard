@@ -161,5 +161,6 @@ describe('FinancialAIReportView deterministic KPI rendering', () => {
       expect(markup).toContain(label);
     }
     expect(markup).not.toContain('Brecha vs meta');
+    expect(markup.match(/<table/g)?.length).toBe(1);
   });
 });

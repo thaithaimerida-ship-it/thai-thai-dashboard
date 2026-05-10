@@ -384,6 +384,15 @@ export function FinancialAIReportView({
                           </td>
                         </tr>
                       ))}
+                      <tr className="border-t border-slate-200 bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-950">Total comisiones</td>
+                        <td className="px-4 py-3 text-slate-500">-</td>
+                        <td className="px-4 py-3 font-semibold text-slate-950">
+                          {formatCurrency(commissionTotal)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">-</td>
+                        <td className="px-4 py-3 text-slate-500">-</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -470,60 +479,22 @@ export function FinancialAIReportView({
               icon={TrendingUp}
               description={report.analisis_canales.resumen}
             >
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_2fr]">
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                      Canal mas rentable
-                    </p>
-                    <p className="mt-2 font-semibold text-emerald-950">
-                      {report.analisis_canales.canal_mas_rentable}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                      Canal de mayor riesgo
-                    </p>
-                    <p className="mt-2 font-semibold text-amber-950">
-                      {report.analisis_canales.canal_mayor_riesgo}
-                    </p>
-                  </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    Canal mas rentable
+                  </p>
+                  <p className="mt-2 font-semibold text-emerald-950">
+                    {report.analisis_canales.canal_mas_rentable}
+                  </p>
                 </div>
-
-                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-left text-sm">
-                      <thead className="bg-slate-50">
-                        <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                          <th className="px-4 py-3 font-semibold">Canal</th>
-                          <th className="px-4 py-3 font-semibold">Bruto</th>
-                          <th className="px-4 py-3 font-semibold">Comision</th>
-                          <th className="px-4 py-3 font-semibold">Neto</th>
-                          <th className="px-4 py-3 font-semibold">% comision</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {report.analisis_canales.canales.map((canal) => (
-                          <tr key={canal.canal} className="border-b border-slate-100 last:border-0">
-                            <td className="px-4 py-3 font-medium text-slate-900">{canal.canal}</td>
-                            <td className="px-4 py-3 text-slate-600">{formatCurrency(canal.bruto)}</td>
-                            <td className="px-4 py-3 text-slate-600">{formatCurrency(canal.comision)}</td>
-                            <td className="px-4 py-3 font-semibold text-slate-950">{formatCurrency(canal.neto)}</td>
-                            <td className="px-4 py-3 text-slate-600">{formatPercent(canal.porcentaje_comision)}</td>
-                          </tr>
-                        ))}
-                        <tr className="border-t border-slate-200 bg-slate-50">
-                          <td className="px-4 py-3 font-semibold text-slate-950">Total comisiones</td>
-                          <td className="px-4 py-3 text-slate-500">-</td>
-                          <td className="px-4 py-3 font-semibold text-slate-950">
-                            {formatCurrency(commissionTotal)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-500">-</td>
-                          <td className="px-4 py-3 text-slate-500">-</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                    Canal de mayor riesgo
+                  </p>
+                  <p className="mt-2 font-semibold text-amber-950">
+                    {report.analisis_canales.canal_mayor_riesgo}
+                  </p>
                 </div>
               </div>
             </SectionCard>
