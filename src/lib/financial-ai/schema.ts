@@ -74,7 +74,12 @@ export const CajaOperativaSchema = z.object({
   venta_neta_caja: z.number(),
   comensales: z.number(),
   ticket_promedio: z.number().nullable(),
-  metodos_pago: z.record(z.string(), z.number()),
+  metodos_pago: z.object({
+    efectivo: z.number(),
+    tarjeta: z.number(),
+    otros: z.number(),
+    propinas_pagadas: z.number(),
+  }),
 });
 
 export const ComisionCanalSchema = z.object({

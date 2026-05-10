@@ -131,6 +131,15 @@ function normalizeLabel(value: string) {
   return value.replaceAll('_', ' ');
 }
 
+function getPaymentMethodItems(report: FinancialReport) {
+  return [
+    ['Efectivo', report.caja_operativa.metodos_pago.efectivo],
+    ['Tarjeta', report.caja_operativa.metodos_pago.tarjeta],
+    ['Otros', report.caja_operativa.metodos_pago.otros],
+    ['Propinas pagadas', report.caja_operativa.metodos_pago.propinas_pagadas],
+  ] as const;
+}
+
 function MetricCard({
   label,
   value,
@@ -326,7 +335,7 @@ export function FinancialAIReportView({
                 />
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-                {Object.entries(report.caja_operativa.metodos_pago).map(([metodo, monto]) => (
+                {getPaymentMethodItems(report).map(([metodo, monto]) => (
                   <div key={metodo} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       {metodo}
