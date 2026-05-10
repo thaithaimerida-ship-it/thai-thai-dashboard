@@ -22,7 +22,7 @@ describe('FinancialAIReportView deterministic KPI rendering', () => {
         ingresos_netos_financieros: 295_000,
         meta_ventas_netas: 325_000,
         punto_equilibrio: 295_000,
-        diferencia_vs_meta: -30_000,
+        diferencia_vs_meta: 15_000,
         diferencia_vs_punto_equilibrio: 0,
         cumplimiento_meta_pct: 90.77,
         cumplimiento_pe_pct: 100,
@@ -58,6 +58,13 @@ describe('FinancialAIReportView deterministic KPI rendering', () => {
           comision: 20_000,
           neto: 80_000,
           porcentaje_comision: 20,
+        },
+        {
+          canal: 'BBVA',
+          bruto: 220_000,
+          comision: 5_000,
+          neto: 215_000,
+          porcentaje_comision: 2.27,
         },
       ],
       resumen_ejecutivo: 'Resumen',
@@ -147,8 +154,12 @@ describe('FinancialAIReportView deterministic KPI rendering', () => {
       'Comensales',
       'Ticket promedio',
       'Uber',
+      'Total comisiones',
+      '$25,000',
+      'Superávit vs meta',
     ]) {
       expect(markup).toContain(label);
     }
+    expect(markup).not.toContain('Brecha vs meta');
   });
 });
