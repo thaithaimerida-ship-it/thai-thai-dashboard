@@ -1,8 +1,8 @@
 import 'server-only';
 
-import { getFinancialAIModel, requestFinancialAIAnalysis } from './anthropic-client';
 import { buildFinancialAIPayload } from './payload-builder';
 import { computeDataHash } from './period';
+import { getSelectedFinancialAIModel, requestFinancialAIAnalysis } from './provider';
 import {
   buildFinancialAISystemPrompt,
   buildFinancialAIUserPrompt,
@@ -35,7 +35,7 @@ export async function generateFinancialAIReport(
     metadata: {
       dataHash: computeDataHash(payload),
       fechaCorteDatos: payload.periodo.rango.fin,
-      model: getFinancialAIModel(),
+      model: getSelectedFinancialAIModel(),
       promptVersion: FINANCIAL_AI_PROMPT_VERSION,
     },
   };

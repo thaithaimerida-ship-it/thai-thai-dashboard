@@ -9,8 +9,13 @@ import {
   AnthropicRequestError,
   AnthropicTimeoutError,
   InsufficientFinancialDataError,
+  InvalidFinancialAIProviderError,
   InvalidAIResponseError,
   MissingAnthropicApiKeyError,
+  MissingOpenAIApiKeyError,
+  OpenAIInvalidResponseError,
+  OpenAIRequestError,
+  OpenAITimeoutError,
 } from '@/lib/financial-ai/errors';
 import {
   generateFinancialAIReport,
@@ -38,7 +43,12 @@ type GenerateErrorCode =
   | 'ANTHROPIC_MISSING_KEY'
   | 'ANTHROPIC_TIMEOUT'
   | 'ANTHROPIC_REQUEST_ERROR'
+  | 'OPENAI_MISSING_KEY'
+  | 'OPENAI_TIMEOUT'
+  | 'OPENAI_REQUEST_ERROR'
+  | 'OPENAI_INVALID_RESPONSE'
   | 'INVALID_AI_RESPONSE'
+  | 'FINANCIAL_AI_PROVIDER_INVALID'
   | 'GOOGLE_SHEETS_ERROR'
   | 'UNKNOWN_GENERATE_ERROR';
 
@@ -125,8 +135,20 @@ function toStatusError(error: unknown, periodId: string, errorStage: GenerateErr
       periodId,
     );
   }
+  if (error instanceof MissingOpenAIApiKeyError) {
+    return jsonError(
+      'Falta configurar la API key de OpenAI',
+      500,
+      'OPENAI_MISSING_KEY',
+      errorStage,
+      periodId,
+    );
+  }
   if (error instanceof AnthropicTimeoutError) {
     return jsonError(error.message, 504, 'ANTHROPIC_TIMEOUT', errorStage, periodId);
+  }
+  if (error instanceof OpenAITimeoutError) {
+    return jsonError(error.message, 504, 'OPENAI_TIMEOUT', errorStage, periodId);
   }
   if (error instanceof AnthropicRequestError) {
     return jsonError(
@@ -136,6 +158,21 @@ function toStatusError(error: unknown, periodId: string, errorStage: GenerateErr
       errorStage,
       periodId,
     );
+  }
+  if (error instanceof OpenAIRequestError) {
+    return jsonError(
+      'Error al solicitar analisis financiero a OpenAI',
+      502,
+      'OPENAI_REQUEST_ERROR',
+      errorStage,
+      periodId,
+    );
+  }
+  if (error instanceof OpenAIInvalidResponseError) {
+    return jsonError(error.message, 502, 'OPENAI_INVALID_RESPONSE', errorStage, periodId);
+  }
+  if (error instanceof InvalidFinancialAIProviderError) {
+    return jsonError(error.message, 500, 'FINANCIAL_AI_PROVIDER_INVALID', errorStage, periodId);
   }
   if (error instanceof InvalidAIResponseError) {
     return jsonError(error.message, 502, 'INVALID_AI_RESPONSE', errorStage, periodId);
