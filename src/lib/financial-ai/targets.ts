@@ -10,5 +10,5 @@ export const FINANCIAL_AI_TARGETS = {
 } as const;
 
 export const FINANCIAL_AI_MODEL = 'claude-sonnet-4-20250514';
-export const OPENAI_FINANCIAL_AI_MODEL = 'gpt-5-mini';
+export const OPENAI_FINANCIAL_AI_MODEL = 'gpt-5.1';
 export const FINANCIAL_AI_PROMPT_VERSION = 'v1';
