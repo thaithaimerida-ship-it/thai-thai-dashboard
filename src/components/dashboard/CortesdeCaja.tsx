@@ -205,25 +205,25 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
   // Default to latest month
   const activeMesKey = mesKey || sortedMonths[sortedMonths.length - 1] || '';
 
-  // Aggregate commissions from Ingresos
+  // Aggregate commissions from Ingresos — DINÁMICO: detecta plataformas automáticamente
+  // por comisión > 0, sin hardcodear ningún nombre
   const comsByMonth = useMemo(() => {
-    const map: Record<string, { ub_b: number; ub_c: number; rp_b: number; rp_c: number }> = {};
+    const map: Record<string, Record<string, { b: number; c: number }>> = {};
     ingresos.forEach(row => {
-      const fuente = (row['Fuente / Cliente'] || '').toUpperCase().trim();
-      const isUber = fuente === 'UBBER' || fuente === 'UBER';
-      const isRappi = fuente === 'RAPPI';
-      if (!isUber && !isRappi) return;
+      const fuente = (row['Fuente / Cliente'] || '').trim();
+      if (!fuente) return;
+      const com = parseMoney(row['Comisión / Retención (-)']);
+      if (com <= 0) return; // Solo plataformas que cobran comisión
       const fecha = parseFecha(row.Fecha);
       if (!fecha) return;
       const parts = row.Fecha.toLowerCase().trim().split(/[\s,]+/);
       const mesStr = parts.find(p => MESES_NOMBRES[p]);
       if (!mesStr) return;
       const key = `${mesStr}_${fecha.getFullYear()}`;
-      if (!map[key]) map[key] = { ub_b: 0, ub_c: 0, rp_b: 0, rp_c: 0 };
-      const bruto = parseMoney(row['Monto Bruto (+)']);
-      const com = parseMoney(row['Comisión / Retención (-)']);
-      if (isUber) { map[key].ub_b += bruto; map[key].ub_c += com; }
-      else { map[key].rp_b += bruto; map[key].rp_c += com; }
+      if (!map[key]) map[key] = {};
+      if (!map[key][fuente]) map[key][fuente] = { b: 0, c: 0 };
+      map[key][fuente].b += parseMoney(row['Monto Bruto (+)']);
+      map[key][fuente].c += com;
     });
     return map;
   }, [ingresos]);
@@ -251,16 +251,22 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
     return { days, ...tot, dias: days.length, label: MESES_NOMBRES[mes] || mes };
   }, [activeMesKey, byMonth, sortedMonths]);
 
-  // Commissions for current view
+  // Commissions for current view — DINÁMICO: acumula por nombre de plataforma
   const curComs = useMemo(() => {
     if (activeMesKey === 'ytd') {
-      return sortedMonths.reduce((acc, k) => {
+      const merged: Record<string, { b: number; c: number }> = {};
+      sortedMonths.forEach(k => {
         const c = comsByMonth[k];
-        if (!c) return acc;
-        return { ub_b: acc.ub_b + c.ub_b, ub_c: acc.ub_c + c.ub_c, rp_b: acc.rp_b + c.rp_b, rp_c: acc.rp_c + c.rp_c };
-      }, { ub_b: 0, ub_c: 0, rp_b: 0, rp_c: 0 });
+        if (!c) return;
+        Object.entries(c).forEach(([plat, vals]) => {
+          if (!merged[plat]) merged[plat] = { b: 0, c: 0 };
+          merged[plat].b += vals.b;
+          merged[plat].c += vals.c;
+        });
+      });
+      return merged;
     }
-    return comsByMonth[activeMesKey] || { ub_b: 0, ub_c: 0, rp_b: 0, rp_c: 0 };
+    return comsByMonth[activeMesKey] || {};
   }, [activeMesKey, comsByMonth, sortedMonths]);
 
   const comedor = cur.tar + cur.ef;
@@ -270,12 +276,18 @@ export function CortesdeCaja({ cortesCaja, ingresos }: Props) {
   const pltP = 100 - comP;
   const ticket = cur.com > 0 ? Math.round(cur.vci / cur.com) : 0;
 
-  const tb = curComs.ub_b + curComs.rp_b;
-  const tc = curComs.ub_c + curComs.rp_c;
+  const platformRows = Object.entries(curComs).map(([name, vals]) => ({
+    name,
+    b: vals.b,
+    c: vals.c,
+    p: vals.b > 0 ? Math.round(vals.c / vals.b * 100) : 0,
+  })).filter(r => r.b > 0).sort((a, b) => b.b - a.b);
+
+  const tb = platformRows.reduce((s, r) => s + r.b, 0);
+  const tc = platformRows.reduce((s, r) => s + r.c, 0);
   const tn = tb - tc;
-  const ubP = curComs.ub_b > 0 ? Math.round(curComs.ub_c / curComs.ub_b * 100) : 0;
-  const rpP = curComs.rp_b > 0 ? Math.round(curComs.rp_c / curComs.rp_b * 100) : 0;
   const totP = tb > 0 ? Math.round(tc / tb * 100) : 0;
+  const platformsAbusivas = platformRows.filter(r => r.p > 70);
 
   // Max for bar charts
   const maxVCI = Math.max(...monthlySummary.map(m => m.vci), 1);
@@ -362,7 +374,7 @@ const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
               <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
                 <p className="text-xs font-bold text-pink-700 uppercase mb-1">📱 Plataformas</p>
                 <p className="text-2xl font-extrabold text-pink-700">{pltP}% <span className="text-sm font-semibold text-pink-500">{MXN(plata)}</span></p>
-                <p className="text-xs text-gray-500 mt-1">Uber Eats + Rappi</p>
+                <p className="text-xs text-gray-500 mt-1">{platformRows.map(r => r.name).join(' + ') || 'Sin datos'}</p>
               </div>
             </div>
           </div>
@@ -382,10 +394,7 @@ const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { name: '🚗 Uber Eats', b: curComs.ub_b, c: curComs.ub_c, p: ubP },
-                    { name: '🛵 Rappi', b: curComs.rp_b, c: curComs.rp_c, p: rpP },
-                  ].filter(r => r.b > 0).map(r => (
+                  {platformRows.map(r => (
                     <tr key={r.name} className="border-b border-pink-50">
                       <td className="p-2">{r.name}</td>
                       <td className="p-2 text-right">{MXN(r.b)}</td>
@@ -408,11 +417,11 @@ const maxBarRef = Math.max(maxVCI, OBJ_IVA + 20000);
               <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2.5 text-xs text-green-800">
                 💰 Vendieron <strong>{MXN(tb)}</strong> a tus clientes · Se quedaron con <strong>{MXN(tc)} ({totP}%)</strong> · Te depositaron <strong>{MXN(tn)}</strong>
               </div>
-              {rpP > 70 && curComs.rp_b > 0 && (
-                <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5 text-xs text-red-800">
-                  ⚠️ <strong>Rappi cobra {rpP}%</strong> — de cada $100 que vende un cliente en Rappi, solo recibes ${100 - rpP}. Considera pausar Rappi o subir precios al menos 80%.
+              {platformsAbusivas.map(r => (
+                <div key={r.name} className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5 text-xs text-red-800">
+                  ⚠️ <strong>{r.name} cobra {r.p}%</strong> — de cada $100 que vende un cliente, solo recibes ${100 - r.p}. Considera pausar o subir precios al menos 80%.
                 </div>
-              )}
+              ))}
             </div>
           )}
         </div>
