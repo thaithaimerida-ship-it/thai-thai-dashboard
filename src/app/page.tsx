@@ -338,18 +338,21 @@ export default function Dashboard() {
                   Actualizado: {lastUpdate.toLocaleTimeString('es-MX')}
                 </span>
               )}
-              <div className="relative">
-                <select
-                  value={indiceMes.toString()}
-                  onChange={(e) => setMesSeleccionado(e.target.value === 'ytd' ? 'ytd' : parseInt(e.target.value))}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {opcionesMeses.map((op) => (
-                    <option key={op.valor} value={op.valor}>{op.etiqueta}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+              {/* Filtro global — solo visible fuera de Cortes de Caja */}
+              {tabActivo !== 'cortes' && (
+                <div className="relative">
+                  <select
+                    value={indiceMes.toString()}
+                    onChange={(e) => setMesSeleccionado(e.target.value === 'ytd' ? 'ytd' : parseInt(e.target.value))}
+                    className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {opcionesMeses.map((op) => (
+                      <option key={op.valor} value={op.valor}>{op.etiqueta}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                </div>
+              )}
               <button onClick={refetch} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Actualizar datos">
                 <RefreshCw className="h-4 w-4" />
               </button>
@@ -479,46 +482,16 @@ export default function Dashboard() {
               </div>
             </section>
 
-            {/* KPIs Operativos - Food Cost, Labor, Costo Primo */}
+            {/* KPIs Operativos */}
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 className="h-5 w-5 text-purple-500" />
                 <h2 className="text-sm font-semibold text-gray-700">KPIs Operativos</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <KPICard 
-                  kpi={{ 
-                    titulo: 'Food Cost', 
-                    valor: datosActuales.foodCost || 0, 
-                    unidad: '%', 
-                    tendencia: 0, 
-                    estado: (datosActuales.foodCost || 0) <= 32 ? ((datosActuales.foodCost || 0) <= 28 ? 'excelente' : 'bueno') : 'alerta' as const, 
-                    descripcion: `Objetivo: 28% - 32%`,
-                    monto: datosActuales.costoVenta || 0
-                  }} 
-                />
-                <KPICard 
-                  kpi={{ 
-                    titulo: 'Labor', 
-                    valor: datosActuales.labor || 0, 
-                    unidad: '%', 
-                    tendencia: 0, 
-                    estado: (datosActuales.labor || 0) <= 25 ? ((datosActuales.labor || 0) <= 20 ? 'excelente' : 'bueno') : 'alerta' as const, 
-                    descripcion: `Objetivo: 20% - 25%`,
-                    monto: datosActuales.nomina || 0
-                  }} 
-                />
-                <KPICard 
-                  kpi={{ 
-                    titulo: 'Costo Primo', 
-                    valor: datosActuales.costoPrimo || 0, 
-                    unidad: '%', 
-                    tendencia: 0, 
-                    estado: (datosActuales.costoPrimo || 0) < 60 ? 'excelente' : 'alerta' as const, 
-                    descripcion: `Objetivo: < 60%`,
-                    monto: (datosActuales.costoVenta || 0) + (datosActuales.nomina || 0)
-                  }} 
-                />
+                <KPICard kpi={{ titulo: 'Food Cost', valor: datosActuales.foodCost || 0, unidad: '%', tendencia: 0, estado: (datosActuales.foodCost || 0) <= 32 ? ((datosActuales.foodCost || 0) <= 28 ? 'excelente' : 'bueno') : 'alerta' as const, descripcion: `Objetivo: 28% - 32%`, monto: datosActuales.costoVenta || 0 }} />
+                <KPICard kpi={{ titulo: 'Labor', valor: datosActuales.labor || 0, unidad: '%', tendencia: 0, estado: (datosActuales.labor || 0) <= 25 ? ((datosActuales.labor || 0) <= 20 ? 'excelente' : 'bueno') : 'alerta' as const, descripcion: `Objetivo: 20% - 25%`, monto: datosActuales.nomina || 0 }} />
+                <KPICard kpi={{ titulo: 'Costo Primo', valor: datosActuales.costoPrimo || 0, unidad: '%', tendencia: 0, estado: (datosActuales.costoPrimo || 0) < 60 ? 'excelente' : 'alerta' as const, descripcion: `Objetivo: < 60%`, monto: (datosActuales.costoVenta || 0) + (datosActuales.nomina || 0) }} />
               </div>
             </section>
 
