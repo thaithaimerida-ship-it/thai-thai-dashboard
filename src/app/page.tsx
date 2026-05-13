@@ -82,12 +82,23 @@ export default function Dashboard() {
     };
   }, [datosProcesados]);
 
-  const formatCurrency = (value: number) => {
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value === 'string') {
+      const parsed = Number(value.replace(/[$,%\s,]/g, ''));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const formatCurrency = (value: unknown) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency', currency: 'MXN',
       minimumFractionDigits: 0, maximumFractionDigits: 0,
-    }).format(value);
+    }).format(toNumber(value));
   };
+
+  const formatPct = (value: unknown, digits = 1) => toNumber(value).toFixed(digits);
 
   const tabs = [
     { id: 'cortes' as const, label: 'Cortes de Caja', icon: ShoppingCart },
@@ -196,28 +207,35 @@ export default function Dashboard() {
     ...ventasMensuales.map((m, i) => ({ valor: i.toString(), etiqueta: `📅 ${m.mesCompleto}` }))
   ];
 
-  const alcanzoPE = datosActuales.ventas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
-  const cashYield = datosActuales.cashYield || 0;
-  const cashYieldMonto = datosActuales.cashYieldMonto || 0;
-  const indiceVsPE =
-    typeof datosActuales.indiceVsPE === 'number' && Number.isFinite(datosActuales.indiceVsPE)
-      ? datosActuales.indiceVsPE
-      : datosActuales.ventas / CONSTANTES_NEGOCIO.PE_MENSUAL;
+  const ventasNetas = toNumber(datosActuales?.ventas);
+  const ventasBrutas = toNumber(datosActuales?.ventasBrutas);
+  const gastosOperativos = toNumber(datosActuales?.gastos);
+  const comisiones = toNumber(datosActuales?.comisiones);
+  const comensales = toNumber(datosActuales?.comensales);
+  const costoVenta = toNumber(datosActuales?.costoVenta);
+  const nomina = toNumber(datosActuales?.nomina);
+  const cashYield = toNumber(datosActuales?.cashYield);
+  const cashYieldMonto = toNumber(datosActuales?.cashYieldMonto);
+  const indiceVsPECalculado = ventasNetas / CONSTANTES_NEGOCIO.PE_MENSUAL;
+  const indiceVsPEOriginal = toNumber(datosActuales?.indiceVsPE);
+  const indiceVsPE = indiceVsPEOriginal > 0 ? indiceVsPEOriginal : indiceVsPECalculado;
+
+  const alcanzoPE = ventasNetas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
 
   // KPIs Financieros
-  const porcentajeVsObjetivo = Math.round((datosActuales.ventas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
-  const utilidadBruta = datosActuales.ventas - datosActuales.gastos;
-  const utilidadBrutaPorcentaje = datosActuales.ventas > 0 ? Math.round((utilidadBruta / datosActuales.ventas) * 10000) / 100 : 0;
+  const porcentajeVsObjetivo = Math.round((ventasNetas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
+  const utilidadBruta = ventasNetas - gastosOperativos;
+  const utilidadBrutaPorcentaje = ventasNetas > 0 ? Math.round((utilidadBruta / ventasNetas) * 10000) / 100 : 0;
 
   // Objetivos de comensales
   const COMENSALES_PE = 990;
   const COMENSALES_OBJETIVO = 1100;
 
   const brecha = {
-    faltanteParaPE: Math.max(0, CONSTANTES_NEGOCIO.PE_MENSUAL - datosActuales.ventas),
-    faltanteParaObjetivo: Math.max(0, CONSTANTES_NEGOCIO.VENTA_OBJETIVO - datosActuales.ventas),
-    comensalesFaltantesPE: Math.max(0, COMENSALES_PE - (datosActuales.comensales || 0)),
-    comensalesFaltantesObjetivo: Math.max(0, COMENSALES_OBJETIVO - (datosActuales.comensales || 0)),
+    faltanteParaPE: Math.max(0, CONSTANTES_NEGOCIO.PE_MENSUAL - ventasNetas),
+    faltanteParaObjetivo: Math.max(0, CONSTANTES_NEGOCIO.VENTA_OBJETIVO - ventasNetas),
+    comensalesFaltantesPE: Math.max(0, COMENSALES_PE - comensales),
+    comensalesFaltantesObjetivo: Math.max(0, COMENSALES_OBJETIVO - comensales),
   };
 
   return (
@@ -323,9 +341,9 @@ export default function Dashboard() {
 
         {tabActivo === 'dashboard' && (() => {
           // ── Estado calculado para el nuevo diseño ──────────────────────────
-          const foodCost = datosActuales.foodCost || 0;
-          const labor = datosActuales.labor || 0;
-          const costoPrimo = datosActuales.costoPrimo || 0;
+          const foodCost = toNumber(datosActuales?.foodCost);
+          const labor = toNumber(datosActuales?.labor);
+          const costoPrimo = toNumber(datosActuales?.costoPrimo);
 
           const estadoFoodCost = foodCost <= 28 ? 'excelente' : foodCost <= 32 ? 'bueno' : 'alerta';
           const estadoLabor = labor <= 20 ? 'excelente' : labor <= 25 ? 'bueno' : 'alerta';
@@ -351,14 +369,14 @@ export default function Dashboard() {
             prioridades.push({
               severidad: 'critico',
               titulo: 'Por debajo del punto de equilibrio',
-              descripcion: `Ventas en ${formatCurrency(datosActuales.ventas)}, faltan ${formatCurrency(brecha.faltanteParaPE)} para cubrir todos los costos del mes.`,
+              descripcion: `Ventas en ${formatCurrency(ventasNetas)}, faltan ${formatCurrency(brecha.faltanteParaPE)} para cubrir todos los costos del mes.`,
               accion: 'Revisar canales de captación y activar promociones de corto plazo esta semana.',
             });
           } else {
             prioridades.push({
               severidad: 'ok',
               titulo: 'Punto de equilibrio alcanzado',
-              descripcion: `Excedente de ${formatCurrency(datosActuales.ventas - CONSTANTES_NEGOCIO.PE_MENSUAL)} sobre el PE. Margen positivo para el mes.`,
+              descripcion: `Excedente de ${formatCurrency(ventasNetas - CONSTANTES_NEGOCIO.PE_MENSUAL)} sobre el PE. Margen positivo para el mes.`,
               accion: 'Mantener ritmo operativo y enfocar en alcanzar el objetivo de $325,000.',
             });
           }
@@ -367,21 +385,21 @@ export default function Dashboard() {
             prioridades.push({
               severidad: 'alerta',
               titulo: 'Labor por encima del objetivo',
-              descripcion: `Costo de nómina en ${labor.toFixed(1)}% de ventas netas, por encima del rango 20–25%.`,
+              descripcion: `Costo de nómina en ${formatPct(labor)}% de ventas netas, por encima del rango 20–25%.`,
               accion: 'Auditar turnos vs afluencia real. Ajustar horarios en días de baja demanda.',
             });
           } else if (utilidadBrutaPorcentaje < 15) {
             prioridades.push({
               severidad: 'alerta',
               titulo: 'Utilidad bruta bajo el objetivo',
-              descripcion: `Margen bruto de ${utilidadBrutaPorcentaje.toFixed(1)}%, por debajo del 15% mínimo objetivo.`,
+              descripcion: `Margen bruto de ${formatPct(utilidadBrutaPorcentaje)}%, por debajo del 15% mínimo objetivo.`,
               accion: 'Revisar estructura de costos. Analizar insumos con mayor desviación vs semana previa.',
             });
           } else {
             prioridades.push({
               severidad: 'ok',
               titulo: 'Labor y utilidad bajo control',
-              descripcion: `Labor ${labor.toFixed(1)}% y utilidad bruta ${utilidadBrutaPorcentaje.toFixed(1)}%, ambos dentro de rango.`,
+              descripcion: `Labor ${formatPct(labor)}% y utilidad bruta ${formatPct(utilidadBrutaPorcentaje)}%, ambos dentro de rango.`,
               accion: 'Continuar con la estructura actual. Monitorear semanalmente.',
             });
           }
@@ -390,14 +408,14 @@ export default function Dashboard() {
             prioridades.push({
               severidad: 'alerta',
               titulo: 'Cash Yield bajo el mínimo',
-              descripcion: `Rentabilidad neta de ${cashYield.toFixed(1)}% después de impuestos, por debajo del 12% objetivo.`,
+              descripcion: `Rentabilidad neta de ${formatPct(cashYield)}% después de impuestos, por debajo del 12% objetivo.`,
               accion: 'Comparar impuestos y financiamientos vs mes anterior. Evaluar con contador.',
             });
           } else {
             prioridades.push({
               severidad: 'ok',
               titulo: 'Cash Yield saludable',
-              descripcion: `Rentabilidad neta de ${cashYield.toFixed(1)}% después de impuestos y financiamientos.`,
+              descripcion: `Rentabilidad neta de ${formatPct(cashYield)}% después de impuestos y financiamientos.`,
               accion: 'Mantener disciplina en gastos. Proyectar cierre del mes vs objetivo.',
             });
           }
@@ -429,14 +447,14 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   <ExecutiveCard
                     label="Ventas Netas"
-                    value={formatCurrency(datosActuales.ventas)}
+                    value={formatCurrency(ventasNetas)}
                     subtitle={`${porcentajeVsObjetivo}% del objetivo mensual`}
                     status={estadoVentas}
                     statusLabel={alcanzoPE ? '✓ Sobre PE' : '↓ Bajo PE'}
                   />
                   <ExecutiveCard
                     label="Utilidad Bruta"
-                    value={`${utilidadBrutaPorcentaje.toFixed(1)}%`}
+                    value={`${formatPct(utilidadBrutaPorcentaje)}%`}
                     secondary={formatCurrency(Math.round(utilidadBruta))}
                     subtitle="Objetivo: 15% – 18%"
                     status={estadoUtilidadBruta}
@@ -448,7 +466,7 @@ export default function Dashboard() {
                   />
                   <ExecutiveCard
                     label="Cash Yield"
-                    value={`${cashYield.toFixed(1)}%`}
+                    value={`${formatPct(cashYield)}%`}
                     secondary={formatCurrency(Math.round(cashYieldMonto))}
                     subtitle="Objetivo: 12% – 18%"
                     status={estadoCashYield}
@@ -460,7 +478,7 @@ export default function Dashboard() {
                   />
                   <ExecutiveCard
                     label="Índice vs PE"
-                    value={indiceVsPE.toFixed(2)}
+                    value={formatPct(indiceVsPE, 2)}
                     subtitle={`PE mensual: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)}`}
                     status={estadoIndice}
                     statusLabel={indiceVsPE >= 1 ? '↑ Arriba del PE' : '↓ Debajo del PE'}
@@ -474,14 +492,14 @@ export default function Dashboard() {
                   ¿Cuánto falta para llegar?
                 </div>
                 <BrechaProgress
-                  ventasActuales={datosActuales.ventas}
+                  ventasActuales={ventasNetas}
                   peMensual={CONSTANTES_NEGOCIO.PE_MENSUAL}
                   ventaObjetivo={CONSTANTES_NEGOCIO.VENTA_OBJETIVO}
-                  comensalesActuales={datosActuales.comensales || 0}
+                  comensalesActuales={comensales}
                   comensalesPE={990}
                   comensalesObjetivo={1100}
-                  comisiones={datosActuales.comisiones || 0}
-                  ventasBrutas={datosActuales.ventasBrutas || 0}
+                  comisiones={comisiones}
+                  ventasBrutas={ventasBrutas}
                   formatCurrency={formatCurrency}
                 />
               </section>
@@ -498,7 +516,7 @@ export default function Dashboard() {
                     estado={estadoFoodCost as 'excelente' | 'bueno' | 'alerta' | 'critico'}
                     objetivo="28% – 32%"
                     rangeMax={32}
-                    monto={datosActuales.costoVenta || 0}
+                    monto={costoVenta}
                   />
                   <OperativeHealthBar
                     titulo="Labor"
@@ -506,7 +524,7 @@ export default function Dashboard() {
                     estado={estadoLabor as 'excelente' | 'bueno' | 'alerta' | 'critico'}
                     objetivo="20% – 25%"
                     rangeMax={25}
-                    monto={datosActuales.nomina || 0}
+                    monto={nomina}
                   />
                   <OperativeHealthBar
                     titulo="Costo Primo"
@@ -514,7 +532,7 @@ export default function Dashboard() {
                     estado={estadoCostoPrimo as 'excelente' | 'bueno' | 'alerta' | 'critico'}
                     objetivo="< 60%"
                     rangeMax={60}
-                    monto={(datosActuales.costoVenta || 0) + (datosActuales.nomina || 0)}
+                    monto={(costoVenta) + (nomina)}
                   />
                 </div>
               </section>
