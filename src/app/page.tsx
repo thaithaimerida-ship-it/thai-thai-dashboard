@@ -1,28 +1,23 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { KPICard } from '@/components/dashboard/KPICard';
-import { ThermometerGauge } from '@/components/dashboard/ThermometerGauge';
-import { TrendChart } from '@/components/dashboard/TrendChart';
-import { TopItemsChart } from '@/components/dashboard/TopItemsChart';
 import { ComisionesPlataformas } from '@/components/dashboard/ComisionesPlataformas';
 import { ProyeccionPECard } from '@/components/dashboard/ProyeccionPE';
 import { AnalisisRangoFechas } from '@/components/dashboard/AnalisisRangoFechas';
 import { AdsPerformance } from '@/components/dashboard/AdsPerformance';
 import { FinancialAIAnalysisTab } from '@/components/financial-ai/FinancialAIAnalysisTab';
 import { CortesdeCaja } from '@/components/dashboard/CortesdeCaja';
-import { ExecutiveKPICard } from '@/components/dashboard/ExecutiveKPICard';
-import { BrechaProgressCard } from '@/components/dashboard/BrechaProgressCard';
+import { ExecutiveCard } from '@/components/dashboard/ExecutiveCard';
+import { BrechaProgress } from '@/components/dashboard/BrechaProgress';
 import { OperativeHealthBar } from '@/components/dashboard/OperativeHealthBar';
 import { ActionPriorities, type AccionEjecutiva } from '@/components/dashboard/ActionPriorities';
-import { CONSTANTES_NEGOCIO, chartColors } from '@/data/realData';
-import { useGoogleSheets, procesarDatosDashboard, parseMoney, parseFecha, getMesAnio } from '@/hooks/useGoogleSheets';
+import { CONSTANTES_NEGOCIO } from '@/data/realData';
+import { useGoogleSheets, procesarDatosDashboard } from '@/hooks/useGoogleSheets';
 import { 
-  Activity, DollarSign, BarChart3, Calendar, RefreshCw, Download, ShoppingCart,
-  Lightbulb, AlertTriangle, CheckCircle, ChevronDown, Target, Info,
-  CreditCard, Calculator, Filter, Settings, ExternalLink, Loader2, TrendingUp,
-  BrainCircuit
+  BarChart3, Calendar, RefreshCw, ShoppingCart, AlertTriangle, CheckCircle,
+  ChevronDown, Target, Info, CreditCard, Calculator, Filter, Settings,
+  ExternalLink, Loader2, BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -151,7 +146,7 @@ export default function Dashboard() {
     );
   }
 
-  const { ventasMensuales, acumulado, comisionesPorPlataforma, gastosPorCategoria } = datosProcesados;
+  const { ventasMensuales, acumulado, comisionesPorPlataforma } = datosProcesados;
 
   // Obtener el mes actual del sistema
   const obtenerMesActualIndex = () => {
@@ -202,7 +197,6 @@ export default function Dashboard() {
   ];
 
   const alcanzoPE = datosActuales.ventas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
-  const utilidad = datosActuales.ventas - datosActuales.gastos;
   const cashYield = datosActuales.cashYield || 0;
   const cashYieldMonto = datosActuales.cashYieldMonto || 0;
 
@@ -210,50 +204,6 @@ export default function Dashboard() {
   const porcentajeVsObjetivo = Math.round((datosActuales.ventas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
   const utilidadBruta = datosActuales.ventas - datosActuales.gastos;
   const utilidadBrutaPorcentaje = datosActuales.ventas > 0 ? Math.round((utilidadBruta / datosActuales.ventas) * 10000) / 100 : 0;
-  
-  const kpis = [
-    { 
-      titulo: 'Utilidad Bruta', 
-      valor: utilidadBrutaPorcentaje, 
-      unidad: '%', 
-      tendencia: 0, 
-      estado: utilidadBrutaPorcentaje >= 15 ? (utilidadBrutaPorcentaje >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
-      descripcion: 'Objetivo: 15% - 18%',
-      monto: Math.round(utilidadBruta)
-    },
-    { 
-      titulo: 'Cash Yield', 
-      valor: cashYield, 
-      unidad: '%', 
-      tendencia: 0, 
-      estado: cashYield >= 12 ? (cashYield >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
-      descripcion: 'Utilidad neta después de impuestos',
-      monto: Math.round(cashYieldMonto)
-    },
-    { 
-      titulo: 'Ventas Netas', 
-      valor: datosActuales.ventas, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: alcanzoPE ? 'excelente' : 'critico' as const, 
-      descripcion: `${porcentajeVsObjetivo}% vs objetivo ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
-    },
-    { 
-      titulo: 'Gastos Operativos',
-      valor: datosActuales.gastos, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: 'bueno' as const, 
-      descripcion: 'Costo de Venta + Gastos Op'
-    },
-  ];
-
-  const kpisRestaurante = [
-    { titulo: 'Índice vs PE', valor: parseFloat(datosActuales.indiceVsPE.toFixed(2)), unidad: '', tendencia: 0, estado: datosActuales.indiceVsPE >= 1 ? 'excelente' : 'critico' as const, descripcion: datosActuales.indiceVsPE >= 1 ? '¡Arriba del PE!' : 'Debajo del PE' },
-    { titulo: 'PE Mensual', valor: CONSTANTES_NEGOCIO.PE_MENSUAL, unidad: '$', tendencia: 0, estado: 'bueno' as const, descripcion: 'Punto de equilibrio' },
-    { titulo: 'Venta Objetivo', valor: CONSTANTES_NEGOCIO.VENTA_OBJETIVO, unidad: '$', tendencia: 0, estado: 'bueno' as const, descripcion: 'Meta mensual' },
-    { titulo: 'Comisiones', valor: datosActuales.comisiones, unidad: '$', tendencia: 0, estado: 'alerta' as const, descripcion: `${Math.round((datosActuales.comisiones / datosActuales.ventasBrutas) * 100)}% sobre ventas brutas` },
-  ];
 
   // Objetivos de comensales
   const COMENSALES_PE = 990;
@@ -265,61 +215,6 @@ export default function Dashboard() {
     comensalesFaltantesPE: Math.max(0, COMENSALES_PE - (datosActuales.comensales || 0)),
     comensalesFaltantesObjetivo: Math.max(0, COMENSALES_OBJETIVO - (datosActuales.comensales || 0)),
   };
-
-  // KPIs de Brechas
-  const kpisBrechas = [
-    { 
-      titulo: 'Faltante para PE', 
-      valor: brecha.faltanteParaPE, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: brecha.faltanteParaPE === 0 ? 'excelente' : 'alerta' as const, 
-      descripcion: brecha.faltanteParaPE === 0 ? '¡PE alcanzado!' : `Ventas actuales: ${formatCurrency(datosActuales.ventas)}` 
-    },
-    { 
-      titulo: 'Faltante para Objetivo', 
-      valor: brecha.faltanteParaObjetivo, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: brecha.faltanteParaObjetivo === 0 ? 'excelente' : 'bueno' as const, 
-      descripcion: brecha.faltanteParaObjetivo === 0 ? '¡Objetivo alcanzado!' : `Meta: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
-    },
-    { 
-      titulo: 'Comensales Faltantes', 
-      valor: brecha.comensalesFaltantesObjetivo, 
-      unidad: '', 
-      tendencia: 0, 
-      estado: brecha.comensalesFaltantesObjetivo === 0 ? 'excelente' : 'alerta' as const, 
-      descripcion: `Actual: ${datosActuales.comensales || 0} | Objetivo: ${COMENSALES_OBJETIVO}`
-    },
-    { 
-      titulo: 'Comensales Faltantes PE', 
-      valor: brecha.comensalesFaltantesPE, 
-      unidad: '', 
-      tendencia: 0, 
-      estado: brecha.comensalesFaltantesPE === 0 ? 'excelente' : 'alerta' as const, 
-      descripcion: `Actual: ${datosActuales.comensales || 0} | PE: ${COMENSALES_PE}`
-    },
-  ];
-
-  // Recomendaciones (kept for reference; new design uses ActionPriorities instead)
-  const recomendaciones: Array<{ tipo: 'alerta' | 'exito' | 'info'; titulo: string; descripcion: string }> = [];
-  if (utilidadBrutaPorcentaje < 15) {
-    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Utilidad Bruta Baja', descripcion: `La utilidad bruta de ${utilidadBrutaPorcentaje.toFixed(1)}% está por debajo del 15% objetivo.` });
-  } else if (utilidadBrutaPorcentaje >= 18) {
-    recomendaciones.push({ tipo: 'exito' as const, titulo: 'Utilidad Bruta Excelente', descripcion: `Utilidad bruta de ${utilidadBrutaPorcentaje.toFixed(1)}% supera el objetivo de 18%.` });
-  }
-  if (cashYield < 12) {
-    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Cash Yield Bajo', descripcion: `El Cash Yield de ${cashYield.toFixed(2)}% está por debajo del 12% objetivo.` });
-  } else if (cashYield >= 18) {
-    recomendaciones.push({ tipo: 'exito' as const, titulo: 'Cash Yield Excelente', descripcion: `Cash Yield de ${cashYield.toFixed(2)}% supera el objetivo de 18%.` });
-  }
-  if (!alcanzoPE) {
-    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Por debajo del PE', descripcion: `Faltan ${formatCurrency(brecha.faltanteParaPE)} para alcanzar el punto de equilibrio.` });
-  } else {
-    recomendaciones.push({ tipo: 'exito' as const, titulo: 'PE Alcanzado', descripcion: `Has superado el PE. Excedente: ${formatCurrency(datosActuales.ventas - CONSTANTES_NEGOCIO.PE_MENSUAL)}` });
-  }
-  recomendaciones.push({ tipo: 'info' as const, titulo: 'Referencias', descripcion: `PE: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)} | Objetivo: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -528,43 +423,43 @@ export default function Dashboard() {
                   Panorama ejecutivo
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                  <ExecutiveKPICard
-                    titulo="Ventas Netas"
-                    valor={formatCurrency(datosActuales.ventas)}
-                    subtitulo={`${porcentajeVsObjetivo}% del objetivo mensual`}
-                    estado={estadoVentas}
-                    etiquetaEstado={alcanzoPE ? '✓ Sobre PE' : '↓ Bajo PE'}
+                  <ExecutiveCard
+                    label="Ventas Netas"
+                    value={formatCurrency(datosActuales.ventas)}
+                    subtitle={`${porcentajeVsObjetivo}% del objetivo mensual`}
+                    status={estadoVentas}
+                    statusLabel={alcanzoPE ? '✓ Sobre PE' : '↓ Bajo PE'}
                   />
-                  <ExecutiveKPICard
-                    titulo="Utilidad Bruta"
-                    valor={`${utilidadBrutaPorcentaje.toFixed(1)}%`}
-                    valorSecundario={formatCurrency(Math.round(utilidadBruta))}
-                    subtitulo="Objetivo: 15% – 18%"
-                    estado={estadoUtilidadBruta}
-                    etiquetaEstado={
+                  <ExecutiveCard
+                    label="Utilidad Bruta"
+                    value={`${utilidadBrutaPorcentaje.toFixed(1)}%`}
+                    secondary={formatCurrency(Math.round(utilidadBruta))}
+                    subtitle="Objetivo: 15% – 18%"
+                    status={estadoUtilidadBruta}
+                    statusLabel={
                       utilidadBrutaPorcentaje >= 18 ? 'Excelente'
                       : utilidadBrutaPorcentaje >= 15 ? 'Dentro de rango'
                       : 'Bajo objetivo'
                     }
                   />
-                  <ExecutiveKPICard
-                    titulo="Cash Yield"
-                    valor={`${cashYield.toFixed(1)}%`}
-                    valorSecundario={formatCurrency(Math.round(cashYieldMonto))}
-                    subtitulo="Objetivo: 12% – 18%"
-                    estado={estadoCashYield}
-                    etiquetaEstado={
+                  <ExecutiveCard
+                    label="Cash Yield"
+                    value={`${cashYield.toFixed(1)}%`}
+                    secondary={formatCurrency(Math.round(cashYieldMonto))}
+                    subtitle="Objetivo: 12% – 18%"
+                    status={estadoCashYield}
+                    statusLabel={
                       cashYield >= 18 ? 'Excelente'
                       : cashYield >= 12 ? 'Dentro de rango'
                       : 'Bajo objetivo'
                     }
                   />
-                  <ExecutiveKPICard
-                    titulo="Índice vs PE"
-                    valor={datosActuales.indiceVsPE.toFixed(2)}
-                    subtitulo={`PE mensual: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)}`}
-                    estado={estadoIndice}
-                    etiquetaEstado={datosActuales.indiceVsPE >= 1 ? '↑ Arriba del PE' : '↓ Debajo del PE'}
+                  <ExecutiveCard
+                    label="Índice vs PE"
+                    value={datosActuales.indiceVsPE.toFixed(2)}
+                    subtitle={`PE mensual: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)}`}
+                    status={estadoIndice}
+                    statusLabel={datosActuales.indiceVsPE >= 1 ? '↑ Arriba del PE' : '↓ Debajo del PE'}
                   />
                 </div>
               </section>
@@ -574,15 +469,16 @@ export default function Dashboard() {
                 <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
                   ¿Cuánto falta para llegar?
                 </div>
-                <BrechaProgressCard
+                <BrechaProgress
                   ventasActuales={datosActuales.ventas}
                   peMensual={CONSTANTES_NEGOCIO.PE_MENSUAL}
                   ventaObjetivo={CONSTANTES_NEGOCIO.VENTA_OBJETIVO}
                   comensalesActuales={datosActuales.comensales || 0}
                   comensalesPE={990}
                   comensalesObjetivo={1100}
-                  faltanteParaPE={brecha.faltanteParaPE}
-                  faltanteParaObjetivo={brecha.faltanteParaObjetivo}
+                  comisiones={datosActuales.comisiones || 0}
+                  ventasBrutas={datosActuales.ventasBrutas || 0}
+                  formatCurrency={formatCurrency}
                 />
               </section>
 
