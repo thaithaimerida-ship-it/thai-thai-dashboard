@@ -199,6 +199,10 @@ export default function Dashboard() {
   const alcanzoPE = datosActuales.ventas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
   const cashYield = datosActuales.cashYield || 0;
   const cashYieldMonto = datosActuales.cashYieldMonto || 0;
+  const indiceVsPE =
+    typeof datosActuales.indiceVsPE === 'number' && Number.isFinite(datosActuales.indiceVsPE)
+      ? datosActuales.indiceVsPE
+      : datosActuales.ventas / CONSTANTES_NEGOCIO.PE_MENSUAL;
 
   // KPIs Financieros
   const porcentajeVsObjetivo = Math.round((datosActuales.ventas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
@@ -338,7 +342,7 @@ export default function Dashboard() {
             : 'critico';
 
           const estadoVentas = alcanzoPE ? 'excelente' : 'critico';
-          const estadoIndice = datosActuales.indiceVsPE >= 1 ? 'excelente' : 'critico';
+          const estadoIndice = indiceVsPE >= 1 ? 'excelente' : 'critico';
 
           // ── Prioridades de acción ejecutivas ──────────────────────────────
           const prioridades: AccionEjecutiva[] = [];
@@ -456,10 +460,10 @@ export default function Dashboard() {
                   />
                   <ExecutiveCard
                     label="Índice vs PE"
-                    value={datosActuales.indiceVsPE.toFixed(2)}
+                    value={indiceVsPE.toFixed(2)}
                     subtitle={`PE mensual: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)}`}
                     status={estadoIndice}
-                    statusLabel={datosActuales.indiceVsPE >= 1 ? '↑ Arriba del PE' : '↓ Debajo del PE'}
+                    statusLabel={indiceVsPE >= 1 ? '↑ Arriba del PE' : '↓ Debajo del PE'}
                   />
                 </div>
               </section>
