@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ComisionesPlataformas } from '@/components/dashboard/ComisionesPlataformas';
+import { PlataformasVentas } from '@/components/dashboard/PlataformasVentas';
 import { ProyeccionPECard } from '@/components/dashboard/ProyeccionPE';
 import { AnalisisRangoFechas } from '@/components/dashboard/AnalisisRangoFechas';
 import { AdsPerformance } from '@/components/dashboard/AdsPerformance';
@@ -17,11 +18,11 @@ import { useGoogleSheets, procesarDatosDashboard } from '@/hooks/useGoogleSheets
 import { 
   BarChart3, Calendar, RefreshCw, ShoppingCart, AlertTriangle, CheckCircle,
   ChevronDown, Target, Info, CreditCard, Calculator, Filter, Settings,
-  ExternalLink, Loader2, BrainCircuit
+  ExternalLink, Loader2, BrainCircuit, Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type TabId = 'cortes' | 'dashboard' | 'comisiones' | 'proyeccion' | 'analisis' | 'automatizacion' | 'ads' | 'financial-ai';
+type TabId = 'cortes' | 'dashboard' | 'comisiones' | 'plataformas' | 'proyeccion' | 'analisis' | 'automatizacion' | 'ads' | 'financial-ai';
 
 export default function Dashboard() {
   const { ingresos, gastos, cortesCaja, loading, error, lastUpdate, refetch, dataStatus } = useGoogleSheets();
@@ -104,6 +105,7 @@ export default function Dashboard() {
     { id: 'cortes' as const, label: 'Cortes de Caja', icon: ShoppingCart },
     { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart3 },
     { id: 'comisiones' as const, label: 'Comisiones', icon: CreditCard },
+    { id: 'plataformas' as const, label: 'Plataformas', icon: Smartphone },
     { id: 'proyeccion' as const, label: 'Proyección PE', icon: Calculator },
     { id: 'analisis' as const, label: 'Análisis Fechas', icon: Filter },
     { id: 'automatizacion' as const, label: 'Automatizar', icon: Settings },
@@ -555,6 +557,16 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-gray-800">Análisis de Comisiones por Plataforma</h2>
             </div>
             <ComisionesPlataformas filtroMes={mesSeleccionado} datosEnTiempoReal={{ comisionesPorPlataforma, ingresos }} />
+          </div>
+        )}
+
+        {tabActivo === 'plataformas' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Smartphone className="h-5 w-5 text-indigo-500" />
+              <h2 className="text-lg font-semibold text-gray-800">Ventas por Plataforma (Uber Eats vs Rappi)</h2>
+            </div>
+            <PlataformasVentas ingresos={ingresos} />
           </div>
         )}
 
