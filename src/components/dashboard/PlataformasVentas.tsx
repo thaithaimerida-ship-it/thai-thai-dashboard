@@ -98,15 +98,36 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
       return (parseInt(aA) * 12 + MESES_LARGOS.indexOf(mA))
            - (parseInt(aB) * 12 + MESES_LARGOS.indexOf(mB));
     });
+    if (mesesOrdenados.length === 0) return [];
 
-    return porMes[mesesOrdenados[filtroMes]] || [];
+    // Resolver el índice objetivo. filtroMes === -1 (default) o fuera de
+    // rango = "mes actual", igual que obtenerMesActualIndex() del header:
+    // el mes en curso si tiene datos, si no el mes más reciente con datos.
+    let idx: number;
+    if (typeof filtroMes === 'number' && filtroMes >= 0 && filtroMes < mesesOrdenados.length) {
+      idx = filtroMes;
+    } else {
+      const ahora = new Date();
+      const mesActualKey = `${MESES_LARGOS[ahora.getMonth()]} ${ahora.getFullYear()}`;
+      const found = mesesOrdenados.indexOf(mesActualKey);
+      idx = found >= 0 ? found : mesesOrdenados.length - 1;
+    }
+
+    return porMes[mesesOrdenados[idx]] || [];
   }, [ingresos, filtroMes]);
 
   // 2) Agregación: semanal (tabla/gráfica) + por fecha (módulo de días)
-  const { semanas, totalUber, totalRappi, total, pctRappi, diasStats } = useMemo(() => {
+  const {
+    semanas, totalUber, totalRappi, total, pctRappi, diasStats,
+    totalUberNeto, totalRappiNeto, totalNeto,
+  } = useMemo(() => {
     const porSemana: Record<
       string,
-      { key: string; semana: string; semanaCorta: string; uber: number; rappi: number }
+      {
+        key: string; semana: string; semanaCorta: string;
+        uber: number; rappi: number;
+        uberNeto: number; rappiNeto: number;
+      }
     > = {};
     // dateKey -> { dow, bruto } — bruto = Uber + Rappi de ese día
     const porFecha: Record<string, { dow: number; bruto: number }> = {};
@@ -124,6 +145,7 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
       if (!fecha) continue;
 
       const bruto = parseMoney(ing['Monto Bruto (+)']);
+      const neto = parseMoney(ing['Monto Neto (Cálculo)']);
 
       // Semanal (ISO)
       const { key, label } = getSemanaISO(fecha);
@@ -134,9 +156,12 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
           semanaCorta: `S${key.split('-W')[1] ?? ''}`,
           uber: 0,
           rappi: 0,
+          uberNeto: 0,
+          rappiNeto: 0,
         };
       }
       porSemana[key][plataforma] += bruto;
+      porSemana[key][plataforma === 'uber' ? 'uberNeto' : 'rappiNeto'] += neto;
 
       // Por fecha (para promedio por día de la semana)
       const dateKey = `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`;
@@ -146,11 +171,18 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
 
     const semanas = Object.values(porSemana)
       .sort((a, b) => a.key.localeCompare(b.key))
-      .map((s) => ({ ...s, total: s.uber + s.rappi }));
+      .map((s) => ({
+        ...s,
+        total: s.uber + s.rappi,
+        netoTotal: s.uberNeto + s.rappiNeto,
+      }));
 
     const totalUber = semanas.reduce((acc, s) => acc + s.uber, 0);
     const totalRappi = semanas.reduce((acc, s) => acc + s.rappi, 0);
     const total = totalUber + totalRappi;
+    const totalUberNeto = semanas.reduce((acc, s) => acc + s.uberNeto, 0);
+    const totalRappiNeto = semanas.reduce((acc, s) => acc + s.rappiNeto, 0);
+    const totalNeto = totalUberNeto + totalRappiNeto;
     const pctRappi = total > 0 ? (totalRappi / total) * 100 : 0;
 
     // Promedio de venta bruta por día de la semana
@@ -171,7 +203,10 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
       .filter((d) => d.count > 0)
       .sort((a, b) => b.avg - a.avg);
 
-    return { semanas, totalUber, totalRappi, total, pctRappi, diasStats };
+    return {
+      semanas, totalUber, totalRappi, total, pctRappi, diasStats,
+      totalUberNeto, totalRappiNeto, totalNeto,
+    };
   }, [ingresosFiltrados]);
 
   if (semanas.length === 0) {
@@ -276,6 +311,9 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
                 <TableHead className="text-right">Uber Eats</TableHead>
                 <TableHead className="text-right">Rappi</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Neto Uber Eats</TableHead>
+                <TableHead className="text-right">Neto Rappi</TableHead>
+                <TableHead className="text-right">Neto Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -285,6 +323,9 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
                   <TableCell className="text-right">{formatCurrency(s.uber)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(s.rappi)}</TableCell>
                   <TableCell className="text-right font-semibold">{formatCurrency(s.total)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(s.uberNeto)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(s.rappiNeto)}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrency(s.netoTotal)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -294,6 +335,9 @@ export function PlataformasVentas({ ingresos, filtroMes = 'ytd' }: PlataformasVe
                 <TableCell className="text-right font-bold">{formatCurrency(totalUber)}</TableCell>
                 <TableCell className="text-right font-bold">{formatCurrency(totalRappi)}</TableCell>
                 <TableCell className="text-right font-bold">{formatCurrency(total)}</TableCell>
+                <TableCell className="text-right font-bold">{formatCurrency(totalUberNeto)}</TableCell>
+                <TableCell className="text-right font-bold">{formatCurrency(totalRappiNeto)}</TableCell>
+                <TableCell className="text-right font-bold">{formatCurrency(totalNeto)}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
