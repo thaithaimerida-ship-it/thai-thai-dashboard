@@ -155,6 +155,49 @@ export function getMesAnio(fecha: Date): string {
   return `${meses[fecha.getMonth()]} ${fecha.getFullYear()}`;
 }
 
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                      'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+// Semana ISO 8601 (lunes inicio; semana 1 = la que contiene el primer jueves).
+// key = "2026-W20" (ordenable, usa el año-ISO que puede diferir del calendario
+// en fin/inicio de año). label = "Sem 20 · 12–18 may" (rango lun–dom).
+// Se trabaja en UTC para evitar desfaces por zona horaria.
+export function getSemanaISO(fecha: Date): { key: string; label: string } {
+  const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7; // Lunes=0 ... Domingo=6
+
+  // Jueves de la semana ISO de esta fecha → define el año-ISO
+  const jueves = new Date(d);
+  jueves.setUTCDate(d.getUTCDate() - dayNum + 3);
+  const anioISO = jueves.getUTCFullYear();
+
+  // Jueves de la semana 1 (la que contiene el 4 de enero)
+  const primerJueves = new Date(Date.UTC(anioISO, 0, 4));
+  const pjDayNum = (primerJueves.getUTCDay() + 6) % 7;
+  primerJueves.setUTCDate(primerJueves.getUTCDate() - pjDayNum + 3);
+
+  const semana = 1 + Math.round(
+    (jueves.getTime() - primerJueves.getTime()) / (7 * 24 * 3600 * 1000)
+  );
+
+  // Lunes y domingo de la semana para el rango legible
+  const lunes = new Date(d);
+  lunes.setUTCDate(d.getUTCDate() - dayNum);
+  const domingo = new Date(lunes);
+  domingo.setUTCDate(lunes.getUTCDate() + 6);
+
+  const key = `${anioISO}-W${String(semana).padStart(2, '0')}`;
+  const dLun = lunes.getUTCDate();
+  const dDom = domingo.getUTCDate();
+  const mLun = MESES_CORTOS[lunes.getUTCMonth()];
+  const mDom = MESES_CORTOS[domingo.getUTCMonth()];
+  const rango = mLun === mDom
+    ? `${dLun}–${dDom} ${mLun}`
+    : `${dLun} ${mLun}–${dDom} ${mDom}`;
+
+  return { key, label: `Sem ${semana} · ${rango}` };
+}
+
 function normalizeText(value: string | null | undefined): string {
   return String(value || '')
     .normalize('NFD')
