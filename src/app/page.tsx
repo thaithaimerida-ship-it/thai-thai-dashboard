@@ -566,7 +566,7 @@ export default function Dashboard() {
               <Smartphone className="h-5 w-5 text-indigo-500" />
               <h2 className="text-lg font-semibold text-gray-800">Ventas por Plataforma (Uber Eats vs Rappi)</h2>
             </div>
-            <PlataformasVentas ingresos={ingresos} />
+            <PlataformasVentas ingresos={ingresos} filtroMes={mesSeleccionado} />
           </div>
         )}
 
