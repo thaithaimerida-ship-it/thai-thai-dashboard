@@ -1,11 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { KPICard } from '@/components/dashboard/KPICard';
-import { ThermometerGauge } from '@/components/dashboard/ThermometerGauge';
-import { TrendChart } from '@/components/dashboard/TrendChart';
-import { TopItemsChart } from '@/components/dashboard/TopItemsChart';
 import { ComisionesPlataformas } from '@/components/dashboard/ComisionesPlataformas';
 import { PlataformasVentas } from '@/components/dashboard/PlataformasVentas';
 import { ProyeccionPECard } from '@/components/dashboard/ProyeccionPE';
@@ -13,13 +9,16 @@ import { AnalisisRangoFechas } from '@/components/dashboard/AnalisisRangoFechas'
 import { AdsPerformance } from '@/components/dashboard/AdsPerformance';
 import { FinancialAIAnalysisTab } from '@/components/financial-ai/FinancialAIAnalysisTab';
 import { CortesdeCaja } from '@/components/dashboard/CortesdeCaja';
-import { CONSTANTES_NEGOCIO, chartColors } from '@/data/realData';
-import { useGoogleSheets, procesarDatosDashboard, parseMoney, parseFecha, getMesAnio } from '@/hooks/useGoogleSheets';
+import { ExecutiveCard } from '@/components/dashboard/ExecutiveCard';
+import { BrechaProgress } from '@/components/dashboard/BrechaProgress';
+import { OperativeHealthBar } from '@/components/dashboard/OperativeHealthBar';
+import { ActionPriorities, type AccionEjecutiva } from '@/components/dashboard/ActionPriorities';
+import { CONSTANTES_NEGOCIO } from '@/data/realData';
+import { useGoogleSheets, procesarDatosDashboard } from '@/hooks/useGoogleSheets';
 import { 
-  Activity, DollarSign, BarChart3, Calendar, RefreshCw, Download, ShoppingCart,
-  Lightbulb, AlertTriangle, CheckCircle, ChevronDown, Target, Info,
-  CreditCard, Calculator, Filter, Settings, ExternalLink, Loader2, TrendingUp,
-  BrainCircuit, Smartphone
+  BarChart3, Calendar, RefreshCw, ShoppingCart, AlertTriangle, CheckCircle,
+  ChevronDown, Target, Info, CreditCard, Calculator, Filter, Settings,
+  ExternalLink, Loader2, BrainCircuit, Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -84,12 +83,23 @@ export default function Dashboard() {
     };
   }, [datosProcesados]);
 
-  const formatCurrency = (value: number) => {
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (typeof value === 'string') {
+      const parsed = Number(value.replace(/[$,%\s,]/g, ''));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const formatCurrency = (value: unknown) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency', currency: 'MXN',
       minimumFractionDigits: 0, maximumFractionDigits: 0,
-    }).format(value);
+    }).format(toNumber(value));
   };
+
+  const formatPct = (value: unknown, digits = 1) => toNumber(value).toFixed(digits);
 
   const tabs = [
     { id: 'cortes' as const, label: 'Cortes de Caja', icon: ShoppingCart },
@@ -149,7 +159,7 @@ export default function Dashboard() {
     );
   }
 
-  const { ventasMensuales, acumulado, comisionesPorPlataforma, gastosPorCategoria } = datosProcesados;
+  const { ventasMensuales, acumulado, comisionesPorPlataforma } = datosProcesados;
 
   // Obtener el mes actual del sistema
   const obtenerMesActualIndex = () => {
@@ -199,125 +209,36 @@ export default function Dashboard() {
     ...ventasMensuales.map((m, i) => ({ valor: i.toString(), etiqueta: `📅 ${m.mesCompleto}` }))
   ];
 
-  const alcanzoPE = datosActuales.ventas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
-  const utilidad = datosActuales.ventas - datosActuales.gastos;
-  const cashYield = datosActuales.cashYield || 0;
-  const cashYieldMonto = datosActuales.cashYieldMonto || 0;
+  const ventasNetas = toNumber(datosActuales?.ventas);
+  const ventasBrutas = toNumber(datosActuales?.ventasBrutas);
+  const gastosOperativos = toNumber(datosActuales?.gastos);
+  const comisiones = toNumber(datosActuales?.comisiones);
+  const comensales = toNumber(datosActuales?.comensales);
+  const costoVenta = toNumber(datosActuales?.costoVenta);
+  const nomina = toNumber(datosActuales?.nomina);
+  const cashYield = toNumber(datosActuales?.cashYield);
+  const cashYieldMonto = toNumber(datosActuales?.cashYieldMonto);
+  const indiceVsPECalculado = ventasNetas / CONSTANTES_NEGOCIO.PE_MENSUAL;
+  const indiceVsPEOriginal = toNumber(datosActuales?.indiceVsPE);
+  const indiceVsPE = indiceVsPEOriginal > 0 ? indiceVsPEOriginal : indiceVsPECalculado;
+
+  const alcanzoPE = ventasNetas >= CONSTANTES_NEGOCIO.PE_MENSUAL;
 
   // KPIs Financieros
-  const porcentajeVsObjetivo = Math.round((datosActuales.ventas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
-  const utilidadBruta = datosActuales.ventas - datosActuales.gastos;
-  const utilidadBrutaPorcentaje = datosActuales.ventas > 0 ? Math.round((utilidadBruta / datosActuales.ventas) * 10000) / 100 : 0;
-  
-  const kpis = [
-    { 
-      titulo: 'Utilidad Bruta', 
-      valor: utilidadBrutaPorcentaje, 
-      unidad: '%', 
-      tendencia: 0, 
-      estado: utilidadBrutaPorcentaje >= 15 ? (utilidadBrutaPorcentaje >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
-      descripcion: 'Objetivo: 15% - 18%',
-      monto: Math.round(utilidadBruta)
-    },
-    { 
-      titulo: 'Cash Yield', 
-      valor: cashYield, 
-      unidad: '%', 
-      tendencia: 0, 
-      estado: cashYield >= 12 ? (cashYield >= 18 ? 'excelente' : 'bueno') : 'alerta' as const, 
-      descripcion: 'Utilidad neta después de impuestos',
-      monto: Math.round(cashYieldMonto)
-    },
-    { 
-      titulo: 'Ventas Netas', 
-      valor: datosActuales.ventas, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: alcanzoPE ? 'excelente' : 'critico' as const, 
-      descripcion: `${porcentajeVsObjetivo}% vs objetivo ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
-    },
-    { 
-      titulo: 'Gastos Operativos',
-      valor: datosActuales.gastos, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: 'bueno' as const, 
-      descripcion: 'Costo de Venta + Gastos Op'
-    },
-  ];
-
-  const kpisRestaurante = [
-    { titulo: 'Índice vs PE', valor: parseFloat(datosActuales.indiceVsPE.toFixed(2)), unidad: '', tendencia: 0, estado: datosActuales.indiceVsPE >= 1 ? 'excelente' : 'critico' as const, descripcion: datosActuales.indiceVsPE >= 1 ? '¡Arriba del PE!' : 'Debajo del PE' },
-    { titulo: 'PE Mensual', valor: CONSTANTES_NEGOCIO.PE_MENSUAL, unidad: '$', tendencia: 0, estado: 'bueno' as const, descripcion: 'Punto de equilibrio' },
-    { titulo: 'Venta Objetivo', valor: CONSTANTES_NEGOCIO.VENTA_OBJETIVO, unidad: '$', tendencia: 0, estado: 'bueno' as const, descripcion: 'Meta mensual' },
-    { titulo: 'Comisiones', valor: datosActuales.comisiones, unidad: '$', tendencia: 0, estado: 'alerta' as const, descripcion: `${Math.round((datosActuales.comisiones / datosActuales.ventasBrutas) * 100)}% sobre ventas brutas` },
-  ];
+  const porcentajeVsObjetivo = Math.round((ventasNetas / CONSTANTES_NEGOCIO.VENTA_OBJETIVO) * 100);
+  const utilidadBruta = ventasNetas - gastosOperativos;
+  const utilidadBrutaPorcentaje = ventasNetas > 0 ? Math.round((utilidadBruta / ventasNetas) * 10000) / 100 : 0;
 
   // Objetivos de comensales
   const COMENSALES_PE = 990;
   const COMENSALES_OBJETIVO = 1100;
 
   const brecha = {
-    faltanteParaPE: Math.max(0, CONSTANTES_NEGOCIO.PE_MENSUAL - datosActuales.ventas),
-    faltanteParaObjetivo: Math.max(0, CONSTANTES_NEGOCIO.VENTA_OBJETIVO - datosActuales.ventas),
-    comensalesFaltantesPE: Math.max(0, COMENSALES_PE - (datosActuales.comensales || 0)),
-    comensalesFaltantesObjetivo: Math.max(0, COMENSALES_OBJETIVO - (datosActuales.comensales || 0)),
+    faltanteParaPE: Math.max(0, CONSTANTES_NEGOCIO.PE_MENSUAL - ventasNetas),
+    faltanteParaObjetivo: Math.max(0, CONSTANTES_NEGOCIO.VENTA_OBJETIVO - ventasNetas),
+    comensalesFaltantesPE: Math.max(0, COMENSALES_PE - comensales),
+    comensalesFaltantesObjetivo: Math.max(0, COMENSALES_OBJETIVO - comensales),
   };
-
-  // KPIs de Brechas
-  const kpisBrechas = [
-    { 
-      titulo: 'Faltante para PE', 
-      valor: brecha.faltanteParaPE, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: brecha.faltanteParaPE === 0 ? 'excelente' : 'alerta' as const, 
-      descripcion: brecha.faltanteParaPE === 0 ? '¡PE alcanzado!' : `Ventas actuales: ${formatCurrency(datosActuales.ventas)}` 
-    },
-    { 
-      titulo: 'Faltante para Objetivo', 
-      valor: brecha.faltanteParaObjetivo, 
-      unidad: '$', 
-      tendencia: 0, 
-      estado: brecha.faltanteParaObjetivo === 0 ? 'excelente' : 'bueno' as const, 
-      descripcion: brecha.faltanteParaObjetivo === 0 ? '¡Objetivo alcanzado!' : `Meta: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` 
-    },
-    { 
-      titulo: 'Comensales Faltantes', 
-      valor: brecha.comensalesFaltantesObjetivo, 
-      unidad: '', 
-      tendencia: 0, 
-      estado: brecha.comensalesFaltantesObjetivo === 0 ? 'excelente' : 'alerta' as const, 
-      descripcion: `Actual: ${datosActuales.comensales || 0} | Objetivo: ${COMENSALES_OBJETIVO}`
-    },
-    { 
-      titulo: 'Comensales Faltantes PE', 
-      valor: brecha.comensalesFaltantesPE, 
-      unidad: '', 
-      tendencia: 0, 
-      estado: brecha.comensalesFaltantesPE === 0 ? 'excelente' : 'alerta' as const, 
-      descripcion: `Actual: ${datosActuales.comensales || 0} | PE: ${COMENSALES_PE}`
-    },
-  ];
-
-  // Recomendaciones
-  const recomendaciones = [];
-  if (utilidadBrutaPorcentaje < 15) {
-    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Utilidad Bruta Baja', descripcion: `La utilidad bruta de ${utilidadBrutaPorcentaje.toFixed(1)}% está por debajo del 15% objetivo.` });
-  } else if (utilidadBrutaPorcentaje >= 18) {
-    recomendaciones.push({ tipo: 'exito' as const, titulo: 'Utilidad Bruta Excelente', descripcion: `Utilidad bruta de ${utilidadBrutaPorcentaje.toFixed(1)}% supera el objetivo de 18%.` });
-  }
-  if (cashYield < 12) {
-    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Cash Yield Bajo', descripcion: `El Cash Yield de ${cashYield.toFixed(2)}% está por debajo del 12% objetivo.` });
-  } else if (cashYield >= 18) {
-    recomendaciones.push({ tipo: 'exito' as const, titulo: 'Cash Yield Excelente', descripcion: `Cash Yield de ${cashYield.toFixed(2)}% supera el objetivo de 18%.` });
-  }
-  if (!alcanzoPE) {
-    recomendaciones.push({ tipo: 'alerta' as const, titulo: 'Por debajo del PE', descripcion: `Faltan ${formatCurrency(brecha.faltanteParaPE)} para alcanzar el punto de equilibrio.` });
-  } else {
-    recomendaciones.push({ tipo: 'exito' as const, titulo: 'PE Alcanzado', descripcion: `Has superado el PE. Excedente: ${formatCurrency(datosActuales.ventas - CONSTANTES_NEGOCIO.PE_MENSUAL)}` });
-  }
-  recomendaciones.push({ tipo: 'info' as const, titulo: 'Referencias', descripcion: `PE: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)} | Objetivo: ${formatCurrency(CONSTANTES_NEGOCIO.VENTA_OBJETIVO)}` });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -340,18 +261,21 @@ export default function Dashboard() {
                   Actualizado: {lastUpdate.toLocaleTimeString('es-MX')}
                 </span>
               )}
-              <div className="relative">
-                <select
-                  value={indiceMes.toString()}
-                  onChange={(e) => setMesSeleccionado(e.target.value === 'ytd' ? 'ytd' : parseInt(e.target.value))}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {opcionesMeses.map((op) => (
-                    <option key={op.valor} value={op.valor}>{op.etiqueta}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              </div>
+              {/* Filtro global — solo visible fuera de Cortes de Caja */}
+              {tabActivo !== 'cortes' && (
+                <div className="relative">
+                  <select
+                    value={indiceMes.toString()}
+                    onChange={(e) => setMesSeleccionado(e.target.value === 'ytd' ? 'ytd' : parseInt(e.target.value))}
+                    className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {opcionesMeses.map((op) => (
+                      <option key={op.valor} value={op.valor}>{op.etiqueta}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                </div>
+              )}
               <button onClick={refetch} className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors" title="Actualizar datos">
                 <RefreshCw className="h-4 w-4" />
               </button>
@@ -417,141 +341,214 @@ export default function Dashboard() {
           <CortesdeCaja cortesCaja={cortesCaja} ingresos={ingresos} />
         )}
 
-        {tabActivo === 'dashboard' && (
-          <div className="space-y-6">
-            {/* Estado */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-blue-600" />
-                <span className="text-sm text-blue-700 font-medium">
-                  {datosActuales.mesCompleto}
-                </span>
-              </div>
-              <div className={cn('rounded-lg px-4 py-2 flex items-center gap-2', alcanzoPE ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200')}>
-                <Target className={cn('h-4 w-4', alcanzoPE ? 'text-green-600' : 'text-red-600')} />
-                <span className={cn('text-sm font-medium', alcanzoPE ? 'text-green-700' : 'text-red-700')}>
+        {tabActivo === 'dashboard' && (() => {
+          // ── Estado calculado para el nuevo diseño ──────────────────────────
+          const foodCost = toNumber(datosActuales?.foodCost);
+          const labor = toNumber(datosActuales?.labor);
+          const costoPrimo = toNumber(datosActuales?.costoPrimo);
+
+          const estadoFoodCost = foodCost <= 28 ? 'excelente' : foodCost <= 32 ? 'bueno' : 'alerta';
+          const estadoLabor = labor <= 20 ? 'excelente' : labor <= 25 ? 'bueno' : 'alerta';
+          const estadoCostoPrimo = costoPrimo < 60 ? 'excelente' : 'critico';
+
+          const estadoUtilidadBruta =
+            utilidadBrutaPorcentaje >= 18 ? 'excelente'
+            : utilidadBrutaPorcentaje >= 15 ? 'bueno'
+            : 'critico';
+
+          const estadoCashYield =
+            cashYield >= 18 ? 'excelente'
+            : cashYield >= 12 ? 'bueno'
+            : 'critico';
+
+          const estadoVentas = alcanzoPE ? 'excelente' : 'critico';
+          const estadoIndice = indiceVsPE >= 1 ? 'excelente' : 'critico';
+
+          // ── Prioridades de acción ejecutivas ──────────────────────────────
+          const prioridades: AccionEjecutiva[] = [];
+
+          if (!alcanzoPE) {
+            prioridades.push({
+              severidad: 'critico',
+              titulo: 'Por debajo del punto de equilibrio',
+              descripcion: `Ventas en ${formatCurrency(ventasNetas)}, faltan ${formatCurrency(brecha.faltanteParaPE)} para cubrir todos los costos del mes.`,
+              accion: 'Revisar canales de captación y activar promociones de corto plazo esta semana.',
+            });
+          } else {
+            prioridades.push({
+              severidad: 'ok',
+              titulo: 'Punto de equilibrio alcanzado',
+              descripcion: `Excedente de ${formatCurrency(ventasNetas - CONSTANTES_NEGOCIO.PE_MENSUAL)} sobre el PE. Margen positivo para el mes.`,
+              accion: 'Mantener ritmo operativo y enfocar en alcanzar el objetivo de $325,000.',
+            });
+          }
+
+          if (labor > 25) {
+            prioridades.push({
+              severidad: 'alerta',
+              titulo: 'Labor por encima del objetivo',
+              descripcion: `Costo de nómina en ${formatPct(labor)}% de ventas netas, por encima del rango 20–25%.`,
+              accion: 'Auditar turnos vs afluencia real. Ajustar horarios en días de baja demanda.',
+            });
+          } else if (utilidadBrutaPorcentaje < 15) {
+            prioridades.push({
+              severidad: 'alerta',
+              titulo: 'Utilidad bruta bajo el objetivo',
+              descripcion: `Margen bruto de ${formatPct(utilidadBrutaPorcentaje)}%, por debajo del 15% mínimo objetivo.`,
+              accion: 'Revisar estructura de costos. Analizar insumos con mayor desviación vs semana previa.',
+            });
+          } else {
+            prioridades.push({
+              severidad: 'ok',
+              titulo: 'Labor y utilidad bajo control',
+              descripcion: `Labor ${formatPct(labor)}% y utilidad bruta ${formatPct(utilidadBrutaPorcentaje)}%, ambos dentro de rango.`,
+              accion: 'Continuar con la estructura actual. Monitorear semanalmente.',
+            });
+          }
+
+          if (cashYield < 12) {
+            prioridades.push({
+              severidad: 'alerta',
+              titulo: 'Cash Yield bajo el mínimo',
+              descripcion: `Rentabilidad neta de ${formatPct(cashYield)}% después de impuestos, por debajo del 12% objetivo.`,
+              accion: 'Comparar impuestos y financiamientos vs mes anterior. Evaluar con contador.',
+            });
+          } else {
+            prioridades.push({
+              severidad: 'ok',
+              titulo: 'Cash Yield saludable',
+              descripcion: `Rentabilidad neta de ${formatPct(cashYield)}% después de impuestos y financiamientos.`,
+              accion: 'Mantener disciplina en gastos. Proyectar cierre del mes vs objetivo.',
+            });
+          }
+
+          return (
+            <div className="space-y-6">
+              {/* A. Header de periodo */}
+              <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                  <span>{datosActuales.mesCompleto}</span>
+                </div>
+                <div className={cn(
+                  'flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border',
+                  alcanzoPE
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                )}>
+                  <Target className="h-3.5 w-3.5" />
                   PE: {alcanzoPE ? 'Alcanzado' : 'No alcanzado'}
-                </span>
+                </div>
               </div>
+
+              {/* B. Executive Snapshot — 4 KPIs principales */}
+              <section>
+                <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Panorama ejecutivo
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <ExecutiveCard
+                    label="Ventas Netas"
+                    value={formatCurrency(ventasNetas)}
+                    subtitle={`${porcentajeVsObjetivo}% del objetivo mensual`}
+                    status={estadoVentas}
+                    statusLabel={alcanzoPE ? '✓ Sobre PE' : '↓ Bajo PE'}
+                  />
+                  <ExecutiveCard
+                    label="Utilidad Bruta"
+                    value={`${formatPct(utilidadBrutaPorcentaje)}%`}
+                    secondary={formatCurrency(Math.round(utilidadBruta))}
+                    subtitle="Objetivo: 15% – 18%"
+                    status={estadoUtilidadBruta}
+                    statusLabel={
+                      utilidadBrutaPorcentaje >= 18 ? 'Excelente'
+                      : utilidadBrutaPorcentaje >= 15 ? 'Dentro de rango'
+                      : 'Bajo objetivo'
+                    }
+                  />
+                  <ExecutiveCard
+                    label="Cash Yield"
+                    value={`${formatPct(cashYield)}%`}
+                    secondary={formatCurrency(Math.round(cashYieldMonto))}
+                    subtitle="Objetivo: 12% – 18%"
+                    status={estadoCashYield}
+                    statusLabel={
+                      cashYield >= 18 ? 'Excelente'
+                      : cashYield >= 12 ? 'Dentro de rango'
+                      : 'Bajo objetivo'
+                    }
+                  />
+                  <ExecutiveCard
+                    label="Índice vs PE"
+                    value={formatPct(indiceVsPE, 2)}
+                    subtitle={`PE mensual: ${formatCurrency(CONSTANTES_NEGOCIO.PE_MENSUAL)}`}
+                    status={estadoIndice}
+                    statusLabel={indiceVsPE >= 1 ? '↑ Arriba del PE' : '↓ Debajo del PE'}
+                  />
+                </div>
+              </section>
+
+              {/* C. Brecha y objetivos */}
+              <section>
+                <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  ¿Cuánto falta para llegar?
+                </div>
+                <BrechaProgress
+                  ventasActuales={ventasNetas}
+                  peMensual={CONSTANTES_NEGOCIO.PE_MENSUAL}
+                  ventaObjetivo={CONSTANTES_NEGOCIO.VENTA_OBJETIVO}
+                  comensalesActuales={comensales}
+                  comensalesPE={990}
+                  comensalesObjetivo={1100}
+                  comisiones={comisiones}
+                  ventasBrutas={ventasBrutas}
+                  formatCurrency={formatCurrency}
+                />
+              </section>
+
+              {/* D. Salud operativa */}
+              <section>
+                <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Salud operativa
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <OperativeHealthBar
+                    titulo="Food Cost"
+                    valor={foodCost}
+                    estado={estadoFoodCost as 'excelente' | 'bueno' | 'alerta' | 'critico'}
+                    objetivo="28% – 32%"
+                    rangeMax={32}
+                    monto={costoVenta}
+                  />
+                  <OperativeHealthBar
+                    titulo="Labor"
+                    valor={labor}
+                    estado={estadoLabor as 'excelente' | 'bueno' | 'alerta' | 'critico'}
+                    objetivo="20% – 25%"
+                    rangeMax={25}
+                    monto={nomina}
+                  />
+                  <OperativeHealthBar
+                    titulo="Costo Primo"
+                    valor={costoPrimo}
+                    estado={estadoCostoPrimo as 'excelente' | 'bueno' | 'alerta' | 'critico'}
+                    objetivo="< 60%"
+                    rangeMax={60}
+                    monto={(costoVenta) + (nomina)}
+                  />
+                </div>
+              </section>
+
+              {/* E. Prioridades de acción */}
+              <section>
+                <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Prioridades de acción
+                </div>
+                <ActionPriorities acciones={prioridades} />
+              </section>
             </div>
-
-            {/* KPIs */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-                <h2 className="text-sm font-semibold text-gray-700">KPIs Financieros</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpis.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
-              </div>
-            </section>
-
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Target className="h-5 w-5 text-amber-500" />
-                <h2 className="text-sm font-semibold text-gray-700">KPIs de Restaurante</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpisRestaurante.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
-              </div>
-            </section>
-
-            {/* KPIs de Brechas */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-                <h2 className="text-sm font-semibold text-gray-700">Brechas vs Objetivos</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {kpisBrechas.map((kpi) => <KPICard key={kpi.titulo} kpi={kpi} />)}
-              </div>
-            </section>
-
-            {/* Termómetros */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Activity className="h-5 w-5 text-blue-600" />
-                <h2 className="text-sm font-semibold text-gray-700">Indicadores de Salud</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <ThermometerGauge titulo="Utilidad Bruta" valor={utilidadBrutaPorcentaje} tipo="margen" monto={Math.round(utilidadBruta)} />
-                <ThermometerGauge titulo="Cash Yield" valor={cashYield} tipo="margen" monto={Math.round(cashYieldMonto)} />
-                <ThermometerGauge titulo="Índice vs PE" valor={datosActuales.indiceVsPE * 100} tipo="indice" />
-                <ThermometerGauge titulo="Nivel de Ventas" valor={datosActuales.ventas} tipo="ventas" />
-              </div>
-            </section>
-
-            {/* KPIs Operativos - Food Cost, Labor, Costo Primo */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart3 className="h-5 w-5 text-purple-500" />
-                <h2 className="text-sm font-semibold text-gray-700">KPIs Operativos</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <KPICard 
-                  kpi={{ 
-                    titulo: 'Food Cost', 
-                    valor: datosActuales.foodCost || 0, 
-                    unidad: '%', 
-                    tendencia: 0, 
-                    estado: (datosActuales.foodCost || 0) <= 32 ? ((datosActuales.foodCost || 0) <= 28 ? 'excelente' : 'bueno') : 'alerta' as const, 
-                    descripcion: `Objetivo: 28% - 32%`,
-                    monto: datosActuales.costoVenta || 0
-                  }} 
-                />
-                <KPICard 
-                  kpi={{ 
-                    titulo: 'Labor', 
-                    valor: datosActuales.labor || 0, 
-                    unidad: '%', 
-                    tendencia: 0, 
-                    estado: (datosActuales.labor || 0) <= 25 ? ((datosActuales.labor || 0) <= 20 ? 'excelente' : 'bueno') : 'alerta' as const, 
-                    descripcion: `Objetivo: 20% - 25%`,
-                    monto: datosActuales.nomina || 0
-                  }} 
-                />
-                <KPICard 
-                  kpi={{ 
-                    titulo: 'Costo Primo', 
-                    valor: datosActuales.costoPrimo || 0, 
-                    unidad: '%', 
-                    tendencia: 0, 
-                    estado: (datosActuales.costoPrimo || 0) < 60 ? 'excelente' : 'alerta' as const, 
-                    descripcion: `Objetivo: < 60%`,
-                    monto: (datosActuales.costoVenta || 0) + (datosActuales.nomina || 0)
-                  }} 
-                />
-              </div>
-            </section>
-
-            {/* Recomendaciones */}
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="h-5 w-5 text-amber-500" />
-                <h2 className="text-sm font-semibold text-gray-700">Recomendaciones</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {recomendaciones.map((rec, index) => (
-                  <Card key={index} className={cn('border-l-4', rec.tipo === 'alerta' && 'border-l-amber-500 bg-amber-50', rec.tipo === 'exito' && 'border-l-green-500 bg-green-50', rec.tipo === 'info' && 'border-l-blue-500 bg-blue-50')}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={cn('p-2 rounded-full', rec.tipo === 'alerta' && 'bg-amber-100', rec.tipo === 'exito' && 'bg-green-100', rec.tipo === 'info' && 'bg-blue-100')}>
-                          {rec.tipo === 'alerta' && <AlertTriangle className="h-4 w-4 text-amber-600" />}
-                          {rec.tipo === 'exito' && <CheckCircle className="h-4 w-4 text-green-600" />}
-                          {rec.tipo === 'info' && <Info className="h-4 w-4 text-blue-600" />}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-800 text-sm">{rec.titulo}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{rec.descripcion}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          </div>
-        )}
+          );
+        })()}
 
         {tabActivo === 'comisiones' && (
           <div className="space-y-4">
